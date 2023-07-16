@@ -2,13 +2,15 @@ pico-8 cartridge // http://www.pico-8.com
 version 34
 __lua__
 -- constants
+screen_size = 128
+
 -- game mode
 gm_menu = 1
 gm_loading_level = 2
 gm_level = 3
 
 -- improve: fixed-length sampling!
-bezier_spline_sample_incr = 0.1
+bezier_spline_sample_incr = .25
 
 -- global state
 game_mode = gm_menu
@@ -17,17 +19,27 @@ function set_game_mode(mode)
   game_mode = mode
 end
 
-
 -->8
 -- library functions
 
 function map(array, func)
   local out = {}
   for i, v in ipairs(array) do
-    out[i] = func(v)
+    out[i] = func(v, i)
   end
 
   return out
+end
+
+function filter(array, func)
+  local filtered = {}
+  for i, v in ipairs(array) do
+    if func(v, i) then
+      filtered[#filtered + 1] = v
+    end
+  end
+
+  return filtered
 end
 
 function count_ex(array, func)
@@ -60,7 +72,6 @@ function all_t(array, func)
   return true
 end
 
-
 -->8
 -- math functions
 function lerp(v0, v1, t)
@@ -71,11 +82,19 @@ function points_equal(self, p2)
   return self.x == p2.x and self.y == p2.y
 end
 
+function point_is_in_window(self, window, exclude)
+  return ((exclude != nil and exclude.min_x == true) or self.x >= window.min_x) and
+         ((exclude != nil and exclude.max_x == true) or self.x <= window.max_x) and
+         ((exclude != nil and exclude.min_y == true) or self.y >= window.min_y) and
+         ((exclude != nil and exclude.max_y == true) or self.y <= window.max_y)
+end
+
 function new_point(x, y)
   return {
     x = x,
     y = y,
-    equals = points_equal
+    equals = points_equal,
+    is_in_window = point_is_in_window,
   }
 end
 
@@ -90,6 +109,24 @@ function lerp_2d(p0, p1, t)
     lerp(p0.x, p1.x, t),
     lerp(p0.y, p1.y, t)
   )
+end
+
+function new_window(min_x, min_y, max_x, max_y)
+  return {
+   min_x = min_x,
+   min_y = min_y,
+   max_x = max_x,
+   max_y = max_y,
+  }
+end
+
+-- improve: should optimize this with some kind of caching
+function get_points_in_window(points, window, exclude)
+  return filter(points, function(point, i)
+    return point:is_in_window(window, exclude) or
+      (i > 1 and points[i - 1]:is_in_window(window, exclude)) or
+      (i < #points and points[i + 1]:is_in_window(window, exclude))
+  end)
 end
 
 -->8
@@ -170,6 +207,30 @@ function new_cubic_bezier_spline(...)
 end
 
 -->8
+-- general drawing functions
+
+function draw_underfill(points, to_y, col)
+  for i, p in ipairs(points) do
+    if i < #points then
+      local next = points[i + 1]
+
+      -- this may lead to back-draw, but that's fine. this is what it is and the curves need to deal
+      -- some playing around suggests having a color generator could even make that a feature...
+      local rise = next.y - p.y
+      local run = next.x - p.x
+      local slope = rise / run
+
+      local drawing_point = new_point(p.x, p.y)
+      while drawing_point.x <= next.x do
+        rect(drawing_point.x, drawing_point.y, drawing_point.x, to_y, col)
+        drawing_point.x += 1
+        drawing_point.y += slope
+      end
+    end
+  end
+end
+
+-->8
 -- serlialization functions
 function bez_spline_to_string(spline)
   local str = ""
@@ -224,16 +285,78 @@ end
 
 level_state = nil
 
+function new_camera()
+  return {
+    locaction = new_point(0, 0),
+    get_window = function(self)
+      return new_window(
+        self.locaction.x,
+        self.locaction.y,
+        self.locaction.x + (screen_size - 1),
+        self.locaction.y + (screen_size - 1)
+      )
+    end,
+  }
+end
+
+function init_level()
+  level_state.camera = new_camera()
+  level_state.initialized = true
+end
+
 function begin_level()
   game_mode = gm_level
 end
 
 function draw_level()
-  cls()
-  print("running level " .. game_levels[level_state.level].name, 0, 0, 11)
+  local level = game_levels[level_state.level]
+  cls(level.background_color)
+
+  if not level_state.initialized then
+    return
+  end
+
+  local window = level_state.camera:get_window()
+  local exclude_upper_y = { min_y = true } -- min_y because 0 is top
+
+  for i, asset in ipairs(level_state.assets) do
+    local asset_def = level.assets[i]
+    if asset_def.type == at_underfill then
+      local points = map(get_points_in_window(asset.points, window, exclude_upper_y), function(point)
+        return new_point(
+          point.x - level_state.camera.locaction.x,
+          point.y - level_state.camera.locaction.y
+        )
+      end)
+
+      draw_underfill(points, screen_size - 1, asset_def.color)
+    end
+  end
 end
 
 function update_level()
+  if not level_state.initialized then
+    init_level()
+    return
+  end
+
+  local move_camera_speed = 1
+
+  if btn(0) then
+    level_state.camera.locaction.x -= move_camera_speed
+  end
+
+  if btn(1) then
+    level_state.camera.locaction.x += move_camera_speed
+  end
+
+  if btn(2) then
+    level_state.camera.locaction.y -= move_camera_speed
+  end
+
+  if btn(3) then
+    level_state.camera.locaction.y += move_camera_speed
+  end
 end
 
 -->8
@@ -245,11 +368,12 @@ at_underfill = 1
 game_levels = {
   {
     name = "level 1",
+    background_color = 12,
     assets = {
       {
         name = "level_floor",
         type = at_underfill,
-        spline = "7,-2.0,78.0,-2.384185791015625e-07,78.0,72.05933380126953,77.66058731079102,73.0,78.0,73.0,78.0,84.69535827636719,82.21993637084961,85.0,94.0,93.0,98.0,93.0,98.0,93.8944320678711,98.44721603393555,96.35372161865234,100.69100952148438,105.0,98.0,105.0,98.0,114.99388885498047,94.88956832885742,116.94491577148438,94.07145690917969,126.0,94.0,126.0,94.0,139.993896484375,93.88956832885742,143.33071899414062,95.6159896850586,152.0,93.0,152.0,93.0,158.993896484375,90.88956451416016,157.97784423828125,90.2248764038086,167.0,91.0,167.0,91.0,188.993896484375,92.88956832885742,222.94473266601562,93.04546737670898,232.0,93.0",
+        spline = " 14,-166.72409057617188,-0.7519989013671875,-157.89453125,-0.725616455078125,-110.53113555908203,-0.828155517578125,-85.0422592163086,-0.7519989013671875,-85.0422592163086,-0.7519989013671875,-76.21269989013672,-0.725616455078125,-48.19500732421875,11.183868408203125,-42.68403625488281,26.55957794189453,-42.68403625488281,26.55957794189453,-39.70491027832031,34.87139129638672,-27.018783569335938,61.58518981933594,-18.024826049804688,75.21943664550781,-18.024826049804688,75.21943664550781,-15.631082534790039,78.84819412231445,-2.7071070671081543,78.0,-2.0,78.0,-2.0,78.0,-2.384185791015625e-07,78.0,72.05933380126953,77.66058731079102,73.0,78.0,73.0,78.0,84.69535827636719,82.21993637084961,85.0,94.0,93.0,98.0,93.0,98.0,93.8944320678711,98.44721603393555,96.35372161865234,100.69100952148438,105.0,98.0,105.0,98.0,114.99388885498047,94.88956832885742,116.94491577148438,94.07145690917969,126.0,94.0,126.0,94.0,139.993896484375,93.88956832885742,143.33071899414062,95.6159896850586,152.0,93.0,152.0,93.0,158.993896484375,90.88956451416016,157.97784423828125,90.2248764038086,167.0,91.0,167.0,91.0,188.993896484375,92.88956832885742,222.94473266601562,93.04546737670898,232.0,93.0,232.0,93.0,253.993896484375,92.88956832885742,271.2315979003906,69.4482650756836,287.0601501464844,57.60420227050781,287.0601501464844,57.60420227050781,304.66998291015625,44.42726135253906,335.00909423828125,2.512054443359375,354.13739013671875,-2.48126220703125,354.13739013671875,-2.48126220703125,382.01641845703125,-9.758895874023438,484.676513671875,-25.236495971679688,521.0657348632812,-22.801071166992188",
         color = 2,
       },
     },
@@ -273,6 +397,7 @@ function load_level(level)
   level_state = {
     level = level,
     assets = {},
+    initialized = false,
   }
 end
 
@@ -281,8 +406,8 @@ function draw_loading_level()
   local level = game_levels[loading_level_state.level]
   local asset_def = level.assets[loading_level_state.loading_asset]
 
-  print("loading level " .. level.name, 0, 0, 8)
-  print("asset: " .. asset_def.name, 0, 7, 8)
+  print("loading level " .. level.name, 0, 0, 6)
+  print("asset: " .. asset_def.name, 0, 7, 6)
 end
 
 function update_loading_level()
@@ -291,10 +416,7 @@ function update_loading_level()
     loading_level_state.loading_state = ls_load
   elseif loading_level_state.loading_state == ls_load then
     local asset_def = level.assets[loading_level_state.loading_asset]
-    local asset = {
-      name = asset_def.name,
-      type = asset_def.type,
-    }
+    local asset = { }
 
     if asset_def.type == at_underfill then
       asset.color = asset_def.color
@@ -302,7 +424,7 @@ function update_loading_level()
       asset.points = spline:sample(bezier_spline_sample_incr)
     end
 
-    level_state.assets[#level_state.assets] = asset
+    level_state.assets[#level_state.assets + 1] = asset
 
     loading_level_state.loading_asset += 1
     if loading_level_state.loading_asset > #level.assets then
