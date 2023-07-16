@@ -4,6 +4,14 @@ __lua__
 -- constants
 screen_size = 128
 
+rico_size_min = 5
+rico_size_max = 20
+
+exclude_upper_y = { min_y = true } -- min_y because 0 is top
+
+gravity = -.2
+rico_max_speed = 3
+
 -- game mode
 gm_menu = 1
 gm_loading_level = 2
@@ -127,6 +135,101 @@ function get_points_in_window(points, window, exclude)
       (i > 1 and points[i - 1]:is_in_window(window, exclude)) or
       (i < #points and points[i + 1]:is_in_window(window, exclude))
   end)
+end
+
+-- eps = 0.0001
+eps = 0.0000152587890625
+
+function sq(x)
+  return x * x
+end
+
+-- pulled from
+-- https://rosettacode.org/wiki/line_circle_intersection#lua
+-- returns the intersection points (if any) of a circle, center 'cp' with radius 'r', and either an infinite line containing the points 'p1' and 'p2' or a
+-- segment drawn between those points.
+function line_circle_intersect(p1, p2, cp, r, segment)
+  local res = {}
+  local x0, y0 = cp.x, cp.y
+  local x1, y1 = p1.x, p1.y
+  local x2, y2 = p2.x, p2.y
+  local _a = y2 - y1
+  local _b = x1 - x2
+  local _c = x2 * y1 - x1 * y2
+  local a = sq(_a) + sq(_b)
+  local b, c
+  local bnz = true
+  if abs(_b) >= eps then
+    b = 2 * (_a * _c + _a * _b * y0 - sq(_b) * x0)
+    c = sq(_c) + 2 * _b * _c * y0 - sq(_b) * (sq(r) - sq(x0) - sq(y0))
+  else
+    b = 2 * (_b * _c + _a * _b * x0 - sq(_a) * y0)
+    c = sq(_c) + 2 * _a * _c * x0 - sq(_a) * (sq(r) - sq(x0) - sq(y0))
+    bnz = false
+  end
+
+  local d = sq(b) - 4 * a * c -- discriminant
+  if d < 0 then
+    return res
+  end
+
+  -- checks whether a point is within a segment
+  function within(x, y)
+    local d1 = sqrt(sq(x2 - x1) + sq(y2 - y1)) -- distance between end-points
+    local d2 = sqrt(sq(x - x1) + sq(y - y1))   -- distance from point to one end
+    local d3 = sqrt(sq(x2 - x) + sq(y2 - y))   -- distance from point to other end
+    local d4 = sqrt(sq(cp.x - x) + sq(cp.y - y))   -- distance from center to point
+    local delta = d1 - d2 - d3
+    return abs(delta) < eps and d4 <= r
+  end
+
+  function fx(x)
+      return -(_a * x + _c) / _b
+  end
+
+  function fy(y)
+    return -(_b * y + _c) / _a
+  end
+
+  function rxy(x, y)
+    if (not segment or within(x, y)) then
+      res[#res + 1] = new_point(x, y)
+    end
+  end
+
+  local x, y
+  if d == 0 then
+    -- line is tangent to circle, so just one intersect at most
+    if bnz then
+      x = -b / (2 * a)
+      y = fx(x)
+      rxy(x, y)
+    else
+      y = -b / (2 * a)
+      x = fy(y)
+      rxy(x, y)
+    end
+  else
+    -- two intersects at most
+    d = sqrt(d)
+    if bnz then
+      x = (-b + d) / (2 * a)
+      y = fx(x)
+      rxy(x, y)
+      x = (-b - d) / (2 * a)
+      y = fx(x)
+      rxy(x, y)
+    else
+      y = (-b + d) / (2 * a)
+      x = fy(y)
+      rxy(x, y)
+      y = (-b - d) / (2 * a)
+      x = fy(y)
+      rxy(x, y)
+    end
+  end
+
+  return res
 end
 
 -->8
@@ -287,13 +390,89 @@ level_state = nil
 
 function new_camera()
   return {
-    locaction = new_point(0, 0),
+    location = new_point(0, 0),
     get_window = function(self)
       return new_window(
-        self.locaction.x,
-        self.locaction.y,
-        self.locaction.x + (screen_size - 1),
-        self.locaction.y + (screen_size - 1)
+        self.location.x,
+        self.location.y,
+        self.location.x + (screen_size - 1),
+        self.location.y + (screen_size - 1)
+      )
+    end,
+  }
+end
+
+function get_colliding_segments(location, size, window)
+  local level = game_levels[level_state.level]
+  local intersections = {}
+
+  for asset_i, asset in ipairs(level_state.assets) do
+    local asset_def = level.assets[asset_i]
+    if asset_def.type == at_underfill then
+      local points = get_points_in_window(asset.points, window)
+
+      for point_i, point in ipairs(points) do
+        if point_i < #points then
+          local next = points[point_i + 1]
+          local intersecting_points = line_circle_intersect(point, next, location, size, true)
+          if #intersecting_points > 0 then
+            intersections[#intersections + 1] = {
+              points = intersecting_points
+            }
+          end
+        end
+      end
+    end
+  end
+
+  return intersections
+end
+
+function new_rico(size, location, color)
+  return {
+    size = size,
+    location = location,
+    velocity = new_point(0, 0),
+    color = color,
+    update = function(self, window)
+      local next_velocity = new_point(self.velocity.x, self.velocity.y)
+
+      local next_point = new_point(
+        self.location.x + next_velocity.x,
+        self.location.y + next_velocity.y
+      )
+
+      local colliding_segments = get_colliding_segments(next_point, self.size, window)
+      if #colliding_segments > 0 then
+        pset(colliding_segments[1].points[1].x, colliding_segments[1].points[1].y, 11)
+        stop()
+        next_velocity.y = 0
+      else
+        next_velocity.y -= gravity
+      end
+
+      local next_speed = sqrt((next_velocity.x * next_velocity.x) + (next_velocity.y * next_velocity.y))
+      if next_speed > rico_max_speed then
+        next_velocity = new_point(
+          (next_velocity.x / next_speed) * rico_max_speed,
+          (next_velocity.y / next_speed) * rico_max_speed
+        )
+      end
+
+      self.location = next_point
+      self.velocity = next_velocity
+    end,
+    draw = function(self, window)
+      if not self.location:is_in_window(window) then
+        return
+      end
+
+      circfill(
+        self.location.x -
+          level_state.camera.location.x,
+        self.location.y - level_state.camera.location.y,
+        self.size,
+        self.color
       )
     end,
   }
@@ -302,6 +481,9 @@ end
 function init_level()
   level_state.camera = new_camera()
   level_state.initialized = true
+  level_state.ricos = {
+    new_rico(5, new_point(64, 30), 9),
+  }
 end
 
 function begin_level()
@@ -317,20 +499,23 @@ function draw_level()
   end
 
   local window = level_state.camera:get_window()
-  local exclude_upper_y = { min_y = true } -- min_y because 0 is top
 
   for i, asset in ipairs(level_state.assets) do
     local asset_def = level.assets[i]
     if asset_def.type == at_underfill then
       local points = map(get_points_in_window(asset.points, window, exclude_upper_y), function(point)
         return new_point(
-          point.x - level_state.camera.locaction.x,
-          point.y - level_state.camera.locaction.y
+          point.x - level_state.camera.location.x,
+          point.y - level_state.camera.location.y
         )
       end)
 
       draw_underfill(points, screen_size - 1, asset_def.color)
     end
+  end
+
+  for i, rico in ipairs(level_state.ricos) do
+    rico:draw(window)
   end
 end
 
@@ -343,19 +528,25 @@ function update_level()
   local move_camera_speed = 1
 
   if btn(0) then
-    level_state.camera.locaction.x -= move_camera_speed
+    level_state.camera.location.x -= move_camera_speed
   end
 
   if btn(1) then
-    level_state.camera.locaction.x += move_camera_speed
+    level_state.camera.location.x += move_camera_speed
   end
 
   if btn(2) then
-    level_state.camera.locaction.y -= move_camera_speed
+    level_state.camera.location.y -= move_camera_speed
   end
 
   if btn(3) then
-    level_state.camera.locaction.y += move_camera_speed
+    level_state.camera.location.y += move_camera_speed
+  end
+
+  local window = level_state.camera:get_window()
+
+  for i, rico in ipairs(level_state.ricos) do
+    rico:update(window)
   end
 end
 
