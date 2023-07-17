@@ -137,99 +137,41 @@ function get_points_in_window(points, window, exclude)
   end)
 end
 
--- eps = 0.0001
-eps = 0.0000152587890625
-
-function sq(x)
-  return x * x
+function get_point_distance(p1, p2)
+  local a = p2.x - p1.x
+  local b = p2.y - p1.y
+  return sqrt((a * a) + (b * b))
 end
 
--- pulled from
--- https://rosettacode.org/wiki/line_circle_intersection#lua
--- returns the intersection points (if any) of a circle, center 'cp' with radius 'r', and either an infinite line containing the points 'p1' and 'p2' or a
--- segment drawn between those points.
-function line_circle_intersect(p1, p2, cp, r, segment)
-  local res = {}
-  local x0, y0 = cp.x, cp.y
-  local x1, y1 = p1.x, p1.y
-  local x2, y2 = p2.x, p2.y
-  local _a = y2 - y1
-  local _b = x1 - x2
-  local _c = x2 * y1 - x1 * y2
-  local a = sq(_a) + sq(_b)
-  local b, c
-  local bnz = true
-  if abs(_b) >= eps then
-    b = 2 * (_a * _c + _a * _b * y0 - sq(_b) * x0)
-    c = sq(_c) + 2 * _b * _c * y0 - sq(_b) * (sq(r) - sq(x0) - sq(y0))
-  else
-    b = 2 * (_b * _c + _a * _b * x0 - sq(_a) * y0)
-    c = sq(_c) + 2 * _a * _c * x0 - sq(_a) * (sq(r) - sq(x0) - sq(y0))
-    bnz = false
-  end
+-- improve: this is way slower than it needs to be...
+-- tried to pull one off of rosettacode and it was very cryptic with issues. would break even when ricos were moving less than one size per frame
+-- the fact that we already rasterize the line at draw time could come in handy here, though...
+-- ... but, then, tying physics to drawing routines sounds bad
+function line_circle_intersect(p1, p2, center, radius)
+    local rise = p2.y - p1.y
+    local run = p2.x - p1.x
+    local slope = rise / run
 
-  local d = sq(b) - 4 * a * c -- discriminant
-  if d < 0 then
-    return res
-  end
+    local intersecting_points = {}
 
-  -- checks whether a point is within a segment
-  function within(x, y)
-    local d1 = sqrt(sq(x2 - x1) + sq(y2 - y1)) -- distance between end-points
-    local d2 = sqrt(sq(x - x1) + sq(y - y1))   -- distance from point to one end
-    local d3 = sqrt(sq(x2 - x) + sq(y2 - y))   -- distance from point to other end
-    local d4 = sqrt(sq(cp.x - x) + sq(cp.y - y))   -- distance from center to point
-    local delta = d1 - d2 - d3
-    return abs(delta) < eps and d4 <= r
-  end
-
-  function fx(x)
-      return -(_a * x + _c) / _b
-  end
-
-  function fy(y)
-    return -(_b * y + _c) / _a
-  end
-
-  function rxy(x, y)
-    if (not segment or within(x, y)) then
-      res[#res + 1] = new_point(x, y)
+    local drawing_point = new_point(p1.x, p1.y)
+    while drawing_point.x <= p2.x do
+      local distance = get_point_distance(center, drawing_point)
+      if distance <= radius then
+        intersecting_points[#intersecting_points + 1] = new_point(drawing_point.x, drawing_point.y)
+      end
+      drawing_point.x += 1
+      drawing_point.y += slope
     end
-  end
 
-  local x, y
-  if d == 0 then
-    -- line is tangent to circle, so just one intersect at most
-    if bnz then
-      x = -b / (2 * a)
-      y = fx(x)
-      rxy(x, y)
+    if #intersecting_points <= 2 then
+      return intersecting_points
     else
-      y = -b / (2 * a)
-      x = fy(y)
-      rxy(x, y)
+      return {
+        intersecting_points[1],
+        intersecting_points[#intersecting_points],
+      }
     end
-  else
-    -- two intersects at most
-    d = sqrt(d)
-    if bnz then
-      x = (-b + d) / (2 * a)
-      y = fx(x)
-      rxy(x, y)
-      x = (-b - d) / (2 * a)
-      y = fx(x)
-      rxy(x, y)
-    else
-      y = (-b + d) / (2 * a)
-      x = fy(y)
-      rxy(x, y)
-      y = (-b - d) / (2 * a)
-      x = fy(y)
-      rxy(x, y)
-    end
-  end
-
-  return res
 end
 
 -->8
@@ -414,7 +356,7 @@ function get_colliding_segments(location, size, window)
       for point_i, point in ipairs(points) do
         if point_i < #points then
           local next = points[point_i + 1]
-          local intersecting_points = line_circle_intersect(point, next, location, size, true)
+          local intersecting_points = line_circle_intersect(point, next, location, size)
           if #intersecting_points > 0 then
             intersections[#intersections + 1] = {
               points = intersecting_points
@@ -444,8 +386,7 @@ function new_rico(size, location, color)
 
       local colliding_segments = get_colliding_segments(next_point, self.size, window)
       if #colliding_segments > 0 then
-        pset(colliding_segments[1].points[1].x, colliding_segments[1].points[1].y, 11)
-        stop()
+        next_point = self.location
         next_velocity.y = 0
       else
         next_velocity.y -= gravity
