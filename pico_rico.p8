@@ -86,23 +86,25 @@ function lerp(v0, v1, t)
   return (1 - t) * v0 + t * v1
 end
 
-function points_equal(self, p2)
-  return self.x == p2.x and self.y == p2.y
-end
-
-function point_is_in_window(self, window, exclude)
-  return ((exclude != nil and exclude.min_x == true) or self.x >= window.min_x) and
-         ((exclude != nil and exclude.max_x == true) or self.x <= window.max_x) and
-         ((exclude != nil and exclude.min_y == true) or self.y >= window.min_y) and
-         ((exclude != nil and exclude.max_y == true) or self.y <= window.max_y)
-end
-
 function new_point(x, y)
   return {
     x = x,
     y = y,
-    equals = points_equal,
-    is_in_window = point_is_in_window,
+    equals = function(self, p2)
+      return self.x == p2.x and self.y == p2.y
+    end,
+    add = function(self, p2)
+      return new_point(self.x + p2.x, self.y + p2.y)
+    end,
+    sub = function(self, p2)
+      return new_point(self.x - p2.x, self.y - p2.y)
+    end,
+    is_in_window = function(self, window, exclude)
+      return ((exclude != nil and exclude.min_x == true) or self.x >= window.min_x) and
+             ((exclude != nil and exclude.max_x == true) or self.x <= window.max_x) and
+             ((exclude != nil and exclude.min_y == true) or self.y >= window.min_y) and
+             ((exclude != nil and exclude.max_y == true) or self.y <= window.max_y)
+    end,
   }
 end
 
@@ -137,10 +139,9 @@ function get_points_in_window(points, window, exclude)
   end)
 end
 
-function get_point_distance(p1, p2)
-  local a = p2.x - p1.x
-  local b = p2.y - p1.y
-  return sqrt((a * a) + (b * b))
+function get_point_distance(a, b)
+  local ab = b:sub(a)
+  return sqrt((ab.x * ab.x) + (ab.y * ab.y))
 end
 
 -- improve: this is way slower than it needs to be...
@@ -177,77 +178,73 @@ end
 -->8
 -- bezier functions
 
-function get_bezier_point(self, index)
-  if index == 1 then
-    return self.p1
-  elseif index == 2 then
-    return self.p2
-  elseif index == 3 then
-    return self.p3
-  else
-    return self.p4
-  end
-end
-
 function new_cubic_bezier(p1, p2, p3, p4)
   return {
     p1 = p1,
     p2 = p2,
     p3 = p3,
     p4 = p4,
-    get_point = get_bezier_point,
+    get_point = function(self, index)
+      if index == 1 then
+        return self.p1
+      elseif index == 2 then
+        return self.p2
+      elseif index == 3 then
+        return self.p3
+      else
+        return self.p4
+      end
+    end,
   }
-end
-
-function sample_bezier_spline(self, incr)
-  -- improve: still using lerp form. could be polynomial...
-
-  local points = {}
-  for _, curve in ipairs(self.curves) do
-    local t = 0
-    while (t <= 1) do
-      if t > 1 then
-        t = 1
-      end
-
-      local q0 = lerp_2d(
-        curve.p1,
-        curve.p2,
-        t
-      )
-
-      local q1 = lerp_2d(
-        curve.p2,
-        curve.p3,
-        t
-      )
-
-      local q2 = lerp_2d(
-        curve.p3,
-        curve.p4,
-        t
-      )
-
-      local r0 = lerp_2d(q0, q1, t)
-      local r1 = lerp_2d(q1, q2, t)
-
-      local b = lerp_2d(r0, r1, t)
-
-      if #points == 0 or not b:equals(points[#points]) then
-        points[#points + 1] = b
-      end
-
-      t = t + incr
-    end
-  end
-
-  return points
 end
 
 function new_cubic_bezier_spline(...)
   return {
     curves = { ... },
-    sample = sample_bezier_spline,
+    sample = function(self, incr)
+      -- improve: still using lerp form. could be polynomial...
+
+      local points = {}
+      for _, curve in ipairs(self.curves) do
+        local t = 0
+        while (t <= 1) do
+          if t > 1 then
+            t = 1
+          end
+
+          local q0 = lerp_2d(
+            curve.p1,
+            curve.p2,
+            t
+          )
+
+          local q1 = lerp_2d(
+            curve.p2,
+            curve.p3,
+            t
+          )
+
+          local q2 = lerp_2d(
+            curve.p3,
+            curve.p4,
+            t
+          )
+
+          local r0 = lerp_2d(q0, q1, t)
+          local r1 = lerp_2d(q1, q2, t)
+
+          local b = lerp_2d(r0, r1, t)
+
+          if #points == 0 or not b:equals(points[#points]) then
+            points[#points + 1] = b
+          end
+
+          t = t + incr
+        end
+      end
+
+      return points
+    end,
   }
 end
 
