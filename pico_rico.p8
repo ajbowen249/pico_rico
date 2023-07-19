@@ -130,7 +130,6 @@ function project_vectors(a, b)
 end
 
 -- https://mathworld.wolfram.com/circle-lineintersection.html
-
 function segment_circle_intersect(_p1, _p2, c, r)
   -- this formula is for a circle at (0, 0), so we need to offset the points going in
   local p1 = _p1:sub(c)
@@ -180,6 +179,51 @@ function segment_circle_intersect(_p1, _p2, c, r)
     return { solutions[1] }
   elseif discriminant > 0 then
     return solutions
+  end
+end
+
+--https://en.wikipedia.org/wiki/line%e2%80%93line_intersection#given_two_points_on_each_line_segment
+function segment_segment_intersect(p1, p2, p3, p4)
+  local tn = ((p1.x - p3.x) * (p3.y - p4.y)) - ((p1.y - p3.y) * (p3.x - p4.x))
+  local td = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
+  local t = tn / td
+
+  local un = ((p1.x - p3.x) * (p1.y - p2.y)) - ((p1.y - p3.y) * (p1.x - p2.x))
+  local ud = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
+  local u = un / ud
+
+  local segment_1_window = new_window(
+    min(p1.x, p2.x),
+    min(p1.y, p2.y),
+    max(p1.x, p2.x),
+    max(p1.y, p2.y)
+  )
+
+  local segment_2_window = new_window(
+    min(p3.x, p4.x),
+    min(p3.y, p4.y),
+    max(p3.x, p4.x),
+    max(p3.y, p4.y)
+  )
+
+  local p = nil
+
+  if t >= 0 and t <= 1 then
+    p = new_point(
+      p1.x + (t * (p2.x - p1.x)),
+      p1.y + (t * (p2.y - p1.y))
+    )
+  elseif u >= 0 and u <= 1 then
+    p = new_point(
+      p3.x + (u * (p4.x - p3.x)),
+      p3.y + (u * (p4.y - p3.y))
+    )
+  end
+
+  if p != nil and p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window) then
+    return { p }
+  else
+    return {}
   end
 end
 
@@ -385,7 +429,7 @@ function new_camera()
   }
 end
 
-function get_colliding_segments(location, size, window)
+function get_segments_colliding_with_circle(location, size, window)
   local level = game_levels[level_state.level]
   local intersections = {}
 
@@ -412,6 +456,33 @@ function get_colliding_segments(location, size, window)
   return intersections
 end
 
+function get_segments_colliding_with_segment(p1, p2, window)
+  local level = game_levels[level_state.level]
+  local intersections = {}
+
+  for asset_i, asset in ipairs(level_state.assets) do
+    local asset_def = level.assets[asset_i]
+    if asset_def.type == at_underfill then
+      local points = get_points_in_window(asset.points, window)
+
+      for point_i, point in ipairs(points) do
+        if point_i < #points then
+          local next = points[point_i + 1]
+          local intersecting_points = segment_segment_intersect(p1, p2, point, next)
+          if #intersecting_points > 0 then
+            intersections[#intersections + 1] = {
+              points = intersecting_points,
+              segment = { p1 = point, p2 = next },
+            }
+          end
+        end
+      end
+    end
+  end
+
+  return intersections
+end
+
 function new_rico(size, location, color)
   return {
     size = size,
@@ -419,7 +490,9 @@ function new_rico(size, location, color)
     velocity = new_point(0, 0),
     color = color,
     draw_coll = function(self, window)
-      local colliding_segments = get_colliding_segments(self.location, self.size, window)
+      -- local colliding_segments = get_segments_colliding_with_circle(self.location, self.size, window)
+      local colliding_segments = get_segments_colliding_with_segment(self.location:sub(new_point(5, 5)), self.location:add(new_point(5, 5)), window)
+      line(self.location.x - 5, self.location.y - 5, self.location.x + 5, self.location.y + 5, 14)
       if #colliding_segments > 0 then
         for _, seg in ipairs(colliding_segments) do
           line(seg.segment.p1.x + window.min_x, seg.segment.p1.y + window.min_y, seg.segment.p2.x + window.min_x, seg.segment.p2.y + window.min_y, 14)
@@ -438,19 +511,11 @@ function new_rico(size, location, color)
         self.location.y + next_velocity.y
       )
 
-      local colliding_segments = get_colliding_segments(next_point, self.size, window)
+      local colliding_segments = get_segments_colliding_with_circle(next_point, self.size, window)
       if #colliding_segments > 0 then
-        for _, seg in ipairs(colliding_segments) do
-          for __, col_point in ipairs(seg.points) do
-            pset(col_point.x, col_point.y, 11)
-          end
-        end
-
-        -- next_point = self.location
         -- next_velocity.y = 0
-        next_velocity.y -= gravity
       else
-        next_velocity.y -= gravity
+        -- next_velocity.y -= gravity
       end
 
       local next_speed = sqrt((next_velocity.x * next_velocity.x) + (next_velocity.y * next_velocity.y))
@@ -486,7 +551,7 @@ function init_level()
   level_state.camera = new_camera()
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(100, 30), 9),
+    new_rico(5, new_point(80, 30), 9),
   }
 end
 
