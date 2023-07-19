@@ -9,8 +9,8 @@ rico_size_max = 20
 
 exclude_upper_y = { min_y = true } -- min_y because 0 is top
 
-gravity = -.2
-rico_max_speed = 3
+gravity = -.1
+rico_max_speed = .5
 
 -- game mode
 gm_menu = 1
@@ -82,6 +82,10 @@ end
 
 -->8
 -- math functions
+function sign_of(val)
+  return val < 0 and -1 or 1
+end
+
 function lerp(v0, v1, t)
   return (1 - t) * v0 + t * v1
 end
@@ -99,6 +103,15 @@ function new_point(x, y)
     sub = function(self, p2)
       return new_point(self.x - p2.x, self.y - p2.y)
     end,
+    mul = function(self, scaler)
+      return new_point(self.x * scaler, self.y * scaler)
+    end,
+    len = function(self)
+      return sqrt(((self.x) * (self.x)) + (self.y * self.y))
+    end,
+    dot = function(self, p2)
+      return (self.x * p2.x) + (self.y * p2.y)
+    end,
     is_in_window = function(self, window, exclude)
       return ((exclude != nil and exclude.min_x == true) or self.x >= window.min_x) and
              ((exclude != nil and exclude.max_x == true) or self.x <= window.max_x) and
@@ -106,6 +119,68 @@ function new_point(x, y)
              ((exclude != nil and exclude.max_y == true) or self.y <= window.max_y)
     end,
   }
+end
+
+-- takes points. from a data persepctive points and vectors are the same thing \_(ツ)_/
+-- for convention, i guess let's start using letters for vectors and pn for points
+function project_vectors(a, b)
+  local blen = b:len()
+  local scaler = a:dot(b) / (blen * blen)
+  return b:mul(scaler)
+end
+
+-- https://mathworld.wolfram.com/circle-lineintersection.html
+
+function segment_circle_intersect(_p1, _p2, c, r)
+  -- this formula is for a circle at (0, 0), so we need to offset the points going in
+  local p1 = _p1:sub(c)
+  local p2 = _p2:sub(c)
+  local _d = p2:sub(p1)
+  local dr = _d:len()
+  local d = (p1.x * p2.y) - (p2.x * p1.y)
+
+  local r2 = r * r
+  local dr2 = dr * dr
+  local discriminant = (r2 * dr2) - (d * d)
+  local common = sqrt(discriminant)
+
+  -- there could be up to two intersection points
+  function get_x(sign)
+    return ((d * _d.y) + (sign_of(_d.y) * _d.x * common * sign)) / dr2
+  end
+
+  function get_y(sign)
+    return ((-1 * d * _d.x) + (abs(_d.y) * common * sign)) / dr2
+  end
+
+  -- not totally sure what to do about the 4 solutions to the quadratic equation. initially thought it would be that they paired two solutions, one where we add
+  -- to get (x1, y1) and subtract to get (x2, y2). doesn't seem to be the case. current guess is there are 2-4 extraneous solutions and anything farther away
+  -- than r is extraneous
+
+  local segment_window = new_window(
+    min(_p1.x, _p2.x),
+    min(_p1.y, _p2.y),
+    max(_p1.x, _p2.x),
+    max(_p1.y, _p2.y)
+  )
+
+  local solutions = filter({
+    -- adding because we initially subtracted to offset
+    new_point(get_x(1), get_y(1)):add(c),
+    new_point(get_x(-1), get_y(-1)):add(c),
+    new_point(get_x(1), get_y(-1)):add(c),
+    new_point(get_x(-1), get_y(1)):add(c),
+  }, function(p)
+    return p:is_in_window(segment_window) and get_point_distance(p, c) <= r
+  end)
+
+  if discriminant < 0 then
+    return {}
+  elseif discriminant == 0 then
+    return { solutions[1] }
+  elseif discriminant > 0 then
+    return solutions
+  end
 end
 
 function contains_point(array, p)
@@ -139,40 +214,9 @@ function get_points_in_window(points, window, exclude)
   end)
 end
 
-function get_point_distance(a, b)
-  local ab = b:sub(a)
-  return sqrt((ab.x * ab.x) + (ab.y * ab.y))
-end
-
--- improve: this is way slower than it needs to be...
--- tried to pull one off of rosettacode and it was very cryptic with issues. would break even when ricos were moving less than one size per frame
--- the fact that we already rasterize the line at draw time could come in handy here, though...
--- ... but, then, tying physics to drawing routines sounds bad
-function line_circle_intersect(p1, p2, center, radius)
-    local rise = p2.y - p1.y
-    local run = p2.x - p1.x
-    local slope = rise / run
-
-    local intersecting_points = {}
-
-    local drawing_point = new_point(p1.x, p1.y)
-    while drawing_point.x <= p2.x do
-      local distance = get_point_distance(center, drawing_point)
-      if distance <= radius then
-        intersecting_points[#intersecting_points + 1] = new_point(drawing_point.x, drawing_point.y)
-      end
-      drawing_point.x += 1
-      drawing_point.y += slope
-    end
-
-    if #intersecting_points <= 2 then
-      return intersecting_points
-    else
-      return {
-        intersecting_points[1],
-        intersecting_points[#intersecting_points],
-      }
-    end
+function get_point_distance(p1, p2)
+  local d = p2:sub(p1)
+  return sqrt((d.x * d.x) + (d.y * d.y))
 end
 
 -->8
@@ -353,10 +397,11 @@ function get_colliding_segments(location, size, window)
       for point_i, point in ipairs(points) do
         if point_i < #points then
           local next = points[point_i + 1]
-          local intersecting_points = line_circle_intersect(point, next, location, size)
+          local intersecting_points = segment_circle_intersect(point, next, location, size)
           if #intersecting_points > 0 then
             intersections[#intersections + 1] = {
-              points = intersecting_points
+              points = intersecting_points,
+              segment = { p1 = point, p2 = next },
             }
           end
         end
@@ -373,6 +418,18 @@ function new_rico(size, location, color)
     location = location,
     velocity = new_point(0, 0),
     color = color,
+    draw_coll = function(self, window)
+      local colliding_segments = get_colliding_segments(self.location, self.size, window)
+      if #colliding_segments > 0 then
+        for _, seg in ipairs(colliding_segments) do
+          line(seg.segment.p1.x + window.min_x, seg.segment.p1.y + window.min_y, seg.segment.p2.x + window.min_x, seg.segment.p2.y + window.min_y, 14)
+
+          for __, col_point in ipairs(seg.points) do
+            pset(col_point.x, col_point.y, 11)
+          end
+        end
+      end
+    end,
     update = function(self, window)
       local next_velocity = new_point(self.velocity.x, self.velocity.y)
 
@@ -383,8 +440,15 @@ function new_rico(size, location, color)
 
       local colliding_segments = get_colliding_segments(next_point, self.size, window)
       if #colliding_segments > 0 then
-        next_point = self.location
-        next_velocity.y = 0
+        for _, seg in ipairs(colliding_segments) do
+          for __, col_point in ipairs(seg.points) do
+            pset(col_point.x, col_point.y, 11)
+          end
+        end
+
+        -- next_point = self.location
+        -- next_velocity.y = 0
+        next_velocity.y -= gravity
       else
         next_velocity.y -= gravity
       end
@@ -397,8 +461,8 @@ function new_rico(size, location, color)
         )
       end
 
-      self.location = next_point
-      self.velocity = next_velocity
+      -- self.location = next_point
+      -- self.velocity = next_velocity
     end,
     draw = function(self, window)
       if not self.location:is_in_window(window) then
@@ -412,6 +476,8 @@ function new_rico(size, location, color)
         self.size,
         self.color
       )
+
+      self:draw_coll(window)
     end,
   }
 end
@@ -420,7 +486,7 @@ function init_level()
   level_state.camera = new_camera()
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(64, 30), 9),
+    new_rico(5, new_point(100, 30), 9),
   }
 end
 
@@ -466,19 +532,23 @@ function update_level()
   local move_camera_speed = 1
 
   if btn(0) then
-    level_state.camera.location.x -= move_camera_speed
+    -- level_state.camera.location.x -= move_camera_speed
+    level_state.ricos[1].location.x -= move_camera_speed
   end
 
   if btn(1) then
-    level_state.camera.location.x += move_camera_speed
+    -- level_state.camera.location.x += move_camera_speed
+    level_state.ricos[1].location.x += move_camera_speed
   end
 
   if btn(2) then
-    level_state.camera.location.y -= move_camera_speed
+    -- level_state.camera.location.y -= move_camera_speed
+    level_state.ricos[1].location.y -= move_camera_speed
   end
 
   if btn(3) then
-    level_state.camera.location.y += move_camera_speed
+    -- level_state.camera.location.y += move_camera_speed
+    level_state.ricos[1].location.y += move_camera_speed
   end
 
   local window = level_state.camera:get_window()
