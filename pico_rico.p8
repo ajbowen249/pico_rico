@@ -106,8 +106,14 @@ function new_point(x, y)
     mul = function(self, scaler)
       return new_point(self.x * scaler, self.y * scaler)
     end,
+    div = function(self, scaler)
+      return new_point(self.x / scaler, self.y / scaler)
+    end,
     len = function(self)
       return sqrt(((self.x) * (self.x)) + (self.y * self.y))
+    end,
+    normal = function(self)
+      return self:div(self:len())
     end,
     dot = function(self, p2)
       return (self.x * p2.x) + (self.y * p2.y)
@@ -483,6 +489,32 @@ function get_segments_colliding_with_segment(p1, p2, window)
   return intersections
 end
 
+-- essentially makes the "smear" of a circle moving from one point to another. the smear is two circles, the start and end, connected with two line segments
+-- parallel to the direction of travel tangent to each side of each circle
+function make_moving_circle_collider(center, size, velocity)
+  local circle1 = { center = center, size = size }
+  local circle2 = { center = center:add(velocity), size = size }
+
+  local dir = circle2.center:sub(circle1.center):normal()
+
+  -- rotate 90 degrees counterclockwise to get to segment 1 and clockwise for 2, and project outward our radius
+  local to_seg_1 = new_point(-1 * dir.y, dir.x):mul(size)
+  local to_seg_2 = new_point(dir.y, -1 * dir.x):mul(size)
+
+  return {
+    circle1 = circle1,
+    circle2 = circle2,
+    seg1 = {
+      p1 = circle1.center:add(to_seg_1),
+      p2 = circle2.center:add(to_seg_1),
+    },
+    seg2 = {
+      p1 = circle1.center:add(to_seg_2),
+      p2 = circle2.center:add(to_seg_2),
+    },
+  }
+end
+
 function new_rico(size, location, color)
   return {
     size = size,
@@ -490,6 +522,14 @@ function new_rico(size, location, color)
     velocity = new_point(0, 0),
     color = color,
     draw_coll = function(self, window)
+      local test_collider_size = 6
+      local collider = make_moving_circle_collider(new_point(20, 20), test_collider_size, new_point(20, -20))
+      circfill(collider.circle1.center.x, collider.circle1.center.y, test_collider_size, 11)
+      circfill(collider.circle2.center.x, collider.circle2.center.y, test_collider_size, 11)
+      line(collider.seg1.p1.x, collider.seg1.p1.y, collider.seg1.p2.x, collider.seg1.p2.y, 11)
+      line(collider.seg2.p1.x, collider.seg2.p1.y, collider.seg2.p2.x, collider.seg2.p2.y, 11)
+
+
       -- local colliding_segments = get_segments_colliding_with_circle(self.location, self.size, window)
       local colliding_segments = get_segments_colliding_with_segment(self.location:sub(new_point(5, 5)), self.location:add(new_point(5, 5)), window)
       line(self.location.x - 5, self.location.y - 5, self.location.x + 5, self.location.y + 5, 14)
