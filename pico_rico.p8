@@ -590,41 +590,6 @@ function new_rico(size, location, color)
       -- project that vector onto the vector of travel. divide the distance from start point by the total potential distance, and that ratio can be back-applied
       -- to our velocity vector to get our final point. i suspect that does not accurately capture the curvature of the edges of the circles, but we shall see
 
-      local start_point = self.location:add(next_velocity:normal():mul(self.size))
-
-      -- local distances = map(colliding_segments, function(seg)
-      --   local ds = map(seg.points, function(point)
-      --     return {
-      --       point = point,
-      --       distance = get_point_distance(start_point, point),
-      --     }
-      --   end)
-
-      --   return min_in(ds, function(p)
-      --     return p.distance
-      --   end)
-      -- end)
-
-
-      local closest_hit = min_in(map(colliding_segments, function(seg)
-        return min_in(map(seg.points, function(point)
-          return {
-            point = point,
-            distance = get_point_distance(start_point, point),
-          }
-        end), function(pair)
-          return pair.distance
-        end)
-      end), function(pair)
-        return pair.distance
-      end)
-
-      local to_hit = closest_hit.point:sub(start_point)
-      local total_distance = collider.circle2.center:sub(collider.circle1.center)
-
-      local hit_on_total = project_vectors(to_hit, total_distance)
-      local distance_ratio = hit_on_total:len() / get_point_distance(start_point, collider.circle2.center)
-
       -- this is pretty wrong...
       -- i don't even really know how it stops the ball...
       -- second frame, i guess?
@@ -638,11 +603,33 @@ function new_rico(size, location, color)
       -- start point is bottom of the ball, but hit is on left edge. if it was going slow, the distance halfway around the ball is definitely farther than total
       -- potential travel, so the ratio ends up above 1
 
+      -- amendment 1 per above: distance is from center point, then subtract the radius instead of picking a "start point". also project from center point to hit
+      -- point instead of from the old "start point." this at least stopped the first observed >1 ratio. unsure if more cases exist
+
+      local closest_hit = min_in(map(colliding_segments, function(seg)
+        return min_in(map(seg.points, function(point)
+          return {
+            point = point,
+            distance = get_point_distance(self.location, point) - self.size,
+          }
+        end), function(pair)
+          return pair.distance
+        end)
+      end), function(pair)
+        return pair.distance
+      end)
+
+      local to_hit = closest_hit.point:sub(self.location)
+      local total_distance = collider.circle2.center:sub(collider.circle1.center)
+
+      local hit_on_total = project_vectors(to_hit, total_distance)
+      local distance_ratio = hit_on_total:len() / get_point_distance(self.location, collider.circle2.center)
+
       -- cls()
       -- print("ratio: " .. distance_ratio .. "\n")
       -- print("len: " .. hit_on_total:len() .. "\n")
-      -- print("total: " .. get_point_distance(start_point, collider.circle2.center) .. "\n")
-      -- print("start: (" .. start_point.x .. ", " .. start_point.y .. ")\n")
+      -- print("total: " .. get_point_distance(self.location, collider.circle2.center) .. "\n")
+      -- print("start: (" .. self.location.x .. ", " .. self.location.y .. ")\n")
       -- print("hit: (" .. closest_hit.point.x .. ", " .. closest_hit.point.y .. ")\n")
       -- print("on: (" .. hit_on_total.x .. ", " .. hit_on_total.y .. ")\n")
       -- stop()
