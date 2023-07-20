@@ -9,8 +9,8 @@ rico_size_max = 20
 
 exclude_upper_y = { min_y = true } -- min_y because 0 is top
 
-gravity = -.1
-rico_max_speed = .5
+gravity = -.4
+rico_max_speed = 3
 
 -- game mode
 gm_menu = 1
@@ -78,6 +78,21 @@ function all_t(array, func)
   end
 
   return true
+end
+
+function min_in(array, getter)
+  local smallest_value = nil
+  local smallest_element
+
+  for _, v in ipairs(array) do
+    local value = getter != nil and getter(v) or v
+    if smallest_value == nil or value < smallest_value then
+      smallest_value = value
+      smallest_element = v
+    end
+  end
+
+  return smallest_element
 end
 
 -->8
@@ -522,17 +537,9 @@ function new_rico(size, location, color)
     velocity = new_point(0, 0),
     color = color,
     draw_coll = function(self, window)
-      local test_collider_size = 6
-      local collider = make_moving_circle_collider(new_point(20, 20), test_collider_size, new_point(20, -20))
-      circfill(collider.circle1.center.x, collider.circle1.center.y, test_collider_size, 11)
-      circfill(collider.circle2.center.x, collider.circle2.center.y, test_collider_size, 11)
-      line(collider.seg1.p1.x, collider.seg1.p1.y, collider.seg1.p2.x, collider.seg1.p2.y, 11)
-      line(collider.seg2.p1.x, collider.seg2.p1.y, collider.seg2.p2.x, collider.seg2.p2.y, 11)
-
-
-      -- local colliding_segments = get_segments_colliding_with_circle(self.location, self.size, window)
-      local colliding_segments = get_segments_colliding_with_segment(self.location:sub(new_point(5, 5)), self.location:add(new_point(5, 5)), window)
-      line(self.location.x - 5, self.location.y - 5, self.location.x + 5, self.location.y + 5, 14)
+      -- line(self.location.x - 5, self.location.y - 5, self.location.x + 5, self.location.y + 5, 14)
+      -- local colliding_segments = get_segments_colliding_with_segment(self.location:sub(new_point(5, 5)), self.location:add(new_point(5, 5)), window)
+      local colliding_segments = get_segments_colliding_with_circle(self.location, self.size, window)
       if #colliding_segments > 0 then
         for _, seg in ipairs(colliding_segments) do
           line(seg.segment.p1.x + window.min_x, seg.segment.p1.y + window.min_y, seg.segment.p2.x + window.min_x, seg.segment.p2.y + window.min_y, 14)
@@ -544,30 +551,104 @@ function new_rico(size, location, color)
       end
     end,
     update = function(self, window)
-      local next_velocity = new_point(self.velocity.x, self.velocity.y)
-
-      local next_point = new_point(
-        self.location.x + next_velocity.x,
-        self.location.y + next_velocity.y
-      )
-
-      local colliding_segments = get_segments_colliding_with_circle(next_point, self.size, window)
-      if #colliding_segments > 0 then
-        -- next_velocity.y = 0
-      else
-        -- next_velocity.y -= gravity
-      end
-
-      local next_speed = sqrt((next_velocity.x * next_velocity.x) + (next_velocity.y * next_velocity.y))
+      local next_velocity = new_point(self.velocity.x, self.velocity.y - gravity)
+      local next_speed = next_velocity:len()
       if next_speed > rico_max_speed then
-        next_velocity = new_point(
-          (next_velocity.x / next_speed) * rico_max_speed,
-          (next_velocity.y / next_speed) * rico_max_speed
-        )
+        next_velocity = next_velocity:normal():mul(rico_max_speed)
       end
 
-      -- self.location = next_point
-      -- self.velocity = next_velocity
+      -- start out assuming we will be able to happily translate forward. this collider is everything we could be in the next frame
+      local collider = make_moving_circle_collider(self.location, self.size, next_velocity)
+      local colliding_segments = {}
+      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle1.center, self.size, window)) do
+        colliding_segments[#colliding_segments + 1] = seg
+      end
+
+      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle2.center, self.size, window)) do
+        colliding_segments[#colliding_segments + 1] = seg
+      end
+
+      for _, seg in ipairs(get_segments_colliding_with_segment(collider.seg1.p1, collider.seg1.p2, window)) do
+        colliding_segments[#colliding_segments + 1] = seg
+      end
+
+      for _, seg in ipairs(get_segments_colliding_with_segment(collider.seg2.p1, collider.seg2.p2, window)) do
+        colliding_segments[#colliding_segments + 1] = seg
+      end
+
+      if #colliding_segments == 0 then
+        self.location = collider.circle2.center
+        self.velocity = next_velocity
+        return
+      end
+
+      -- "2d hits are like clipping a movement vector or something" -john carmack, i think
+
+      -- assume we were not already partway through something in the previous frame. from here, the collider is probing the level geometry and we want to know
+      -- the closest hit. the total distance we could have traveled is the distance between the center points of the two circles. take the point we left
+      -- from (which is the point at the tip of the circle in our direction of travel in this case, not the center!) and make a vector to the hit point.
+      -- project that vector onto the vector of travel. divide the distance from start point by the total potential distance, and that ratio can be back-applied
+      -- to our velocity vector to get our final point. i suspect that does not accurately capture the curvature of the edges of the circles, but we shall see
+
+      local start_point = self.location:add(next_velocity:normal():mul(self.size))
+
+      -- local distances = map(colliding_segments, function(seg)
+      --   local ds = map(seg.points, function(point)
+      --     return {
+      --       point = point,
+      --       distance = get_point_distance(start_point, point),
+      --     }
+      --   end)
+
+      --   return min_in(ds, function(p)
+      --     return p.distance
+      --   end)
+      -- end)
+
+
+      local closest_hit = min_in(map(colliding_segments, function(seg)
+        return min_in(map(seg.points, function(point)
+          return {
+            point = point,
+            distance = get_point_distance(start_point, point),
+          }
+        end), function(pair)
+          return pair.distance
+        end)
+      end), function(pair)
+        return pair.distance
+      end)
+
+      local to_hit = closest_hit.point:sub(start_point)
+      local total_distance = collider.circle2.center:sub(collider.circle1.center)
+
+      local hit_on_total = project_vectors(to_hit, total_distance)
+      local distance_ratio = hit_on_total:len() / get_point_distance(start_point, collider.circle2.center)
+
+      -- this is pretty wrong...
+      -- i don't even really know how it stops the ball...
+      -- second frame, i guess?
+
+      -- problem is if you hit far from the start point without having traveled far, like this:
+      --
+      --  \  / \
+      --   \x\_/
+      --    \
+      --
+      -- start point is bottom of the ball, but hit is on left edge. if it was going slow, the distance halfway around the ball is definitely farther than total
+      -- potential travel, so the ratio ends up above 1
+
+      -- cls()
+      -- print("ratio: " .. distance_ratio .. "\n")
+      -- print("len: " .. hit_on_total:len() .. "\n")
+      -- print("total: " .. get_point_distance(start_point, collider.circle2.center) .. "\n")
+      -- print("start: (" .. start_point.x .. ", " .. start_point.y .. ")\n")
+      -- print("hit: (" .. closest_hit.point.x .. ", " .. closest_hit.point.y .. ")\n")
+      -- print("on: (" .. hit_on_total.x .. ", " .. hit_on_total.y .. ")\n")
+      -- stop()
+
+      next_velocity = next_velocity:mul(distance_ratio)
+      self.location = self.location:add(next_velocity)
     end,
     draw = function(self, window)
       if not self.location:is_in_window(window) then
@@ -591,7 +672,7 @@ function init_level()
   level_state.camera = new_camera()
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(80, 30), 9),
+    new_rico(5, new_point(90, 30), 9),
   }
 end
 
