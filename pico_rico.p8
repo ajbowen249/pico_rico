@@ -610,6 +610,9 @@ function new_rico(size, location, color)
       -- amendment 1 per above: distance is from center point, then subtract the radius instead of picking a "start point". also project from center point to hit
       -- point instead of from the old "start point." this at least stopped the first observed >1 ratio. unsure if more cases exist
 
+      -- amendment 2 (todo): the starting assumption is bad thanks to accrued error. let's check if there are any first-circle (current location) hits first and
+      -- translate ourselves out of whatever we've sunken into
+
       local closest_hit = min_in(map(colliding_segments, function(seg)
         return min_in(map(seg.points, function(point)
           return {
