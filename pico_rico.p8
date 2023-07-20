@@ -150,6 +150,10 @@ function project_vectors(a, b)
   return b:mul(scaler)
 end
 
+function reflect_vector_against(a, n)
+  return a:sub(n:mul(2 * a:dot(n)))
+end
+
 -- https://mathworld.wolfram.com/circle-lineintersection.html
 function segment_circle_intersect(_p1, _p2, c, r)
   -- this formula is for a circle at (0, 0), so we need to offset the points going in
@@ -436,9 +440,9 @@ end
 
 level_state = nil
 
-function new_camera()
+function new_camera(x, y)
   return {
-    location = new_point(0, 0),
+    location = new_point(x, y),
     get_window = function(self)
       return new_window(
         self.location.x,
@@ -610,6 +614,7 @@ function new_rico(size, location, color)
         return min_in(map(seg.points, function(point)
           return {
             point = point,
+            segment = seg.segment,
             distance = get_point_distance(self.location, point) - self.size,
           }
         end), function(pair)
@@ -634,7 +639,14 @@ function new_rico(size, location, color)
       -- print("on: (" .. hit_on_total.x .. ", " .. hit_on_total.y .. ")\n")
       -- stop()
 
-      next_velocity = next_velocity:mul(distance_ratio)
+      -- next step: deflection. could it be as simple as reflecting velocity noramal against the segment we hit and giving 1-ratio along that to velocity?
+
+      local deflection = reflect_vector_against(
+        next_velocity:normal(),
+        closest_hit.segment.p2:sub(closest_hit.segment.p1):normal()
+      ):normal():mul(1 - distance_ratio)
+
+      next_velocity = next_velocity:mul(distance_ratio):sub(deflection)
       self.location = self.location:add(next_velocity)
     end,
     draw = function(self, window)
@@ -656,10 +668,10 @@ function new_rico(size, location, color)
 end
 
 function init_level()
-  level_state.camera = new_camera()
+  level_state.camera = new_camera(-70, -70)
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(90, 30), 9),
+    new_rico(5, new_point(-50, -60), 9),
   }
 end
 
@@ -705,23 +717,23 @@ function update_level()
   local move_camera_speed = 1
 
   if btn(0) then
-    -- level_state.camera.location.x -= move_camera_speed
-    level_state.ricos[1].location.x -= move_camera_speed
+    level_state.camera.location.x -= move_camera_speed
+    -- level_state.ricos[1].location.x -= move_camera_speed
   end
 
   if btn(1) then
-    -- level_state.camera.location.x += move_camera_speed
-    level_state.ricos[1].location.x += move_camera_speed
+    level_state.camera.location.x += move_camera_speed
+    -- level_state.ricos[1].location.x += move_camera_speed
   end
 
   if btn(2) then
-    -- level_state.camera.location.y -= move_camera_speed
-    level_state.ricos[1].location.y -= move_camera_speed
+    level_state.camera.location.y -= move_camera_speed
+    -- level_state.ricos[1].location.y -= move_camera_speed
   end
 
   if btn(3) then
-    -- level_state.camera.location.y += move_camera_speed
-    level_state.ricos[1].location.y += move_camera_speed
+    level_state.camera.location.y += move_camera_speed
+    -- level_state.ricos[1].location.y += move_camera_speed
   end
 
   local window = level_state.camera:get_window()
