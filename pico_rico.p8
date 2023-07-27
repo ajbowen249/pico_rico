@@ -207,8 +207,26 @@ function segment_circle_intersect(_p1, _p2, c, r)
   end
 end
 
+--https://en.wikipedia.org/wiki/line%e2%80%93line_intersection#given_two_points_on_each_line
+function line_line_intersect(p1, p2, p3, p4)
+  local denominator = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
+  if denominator == 0 then
+    return {}
+  end
+
+  local common_1 = (p1.x * p2.y) - (p1.y * p2.x)
+  local common_2 = (p3.x * p4.y) - (p3.y * p4.x)
+
+  return {
+    new_point(
+      (common_1 * (p3.x - p4.x) - (p1.x - p2.x) * common_2) / denominator,
+      (common_1 * (p3.y - p4.y) - (p1.y - p2.y) * common_2) / denominator
+    )
+  }
+end
+
 --https://en.wikipedia.org/wiki/line%e2%80%93line_intersection#given_two_points_on_each_line_segment
-function segment_segment_intersect(p1, p2, p3, p4, infinite)
+function segment_segment_intersect(p1, p2, p3, p4)
   local tn = ((p1.x - p3.x) * (p3.y - p4.y)) - ((p1.y - p3.y) * (p3.x - p4.x))
   local td = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
   local t = tn / td
@@ -245,7 +263,7 @@ function segment_segment_intersect(p1, p2, p3, p4, infinite)
     )
   end
 
-  if p != nil and (infinite == true or (p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window))) then
+  if p != nil and p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window) then
     return { p }
   else
     return {}
@@ -640,19 +658,21 @@ function new_rico(size, location, color)
 
       local seg_p1 = closest_hit.segment.p1:add(project_vector)
       local seg_p2 = closest_hit.segment.p2:add(project_vector)
-      local new_point = segment_segment_intersect(seg_p1, seg_p2, self.location, collider.circle2.center, true)[1]
+      local new_point = line_line_intersect(seg_p1, seg_p2, self.location, collider.circle2.center)[1]
 
       if new_point == nil then
-        -- cls()
-        -- print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
-        -- print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
-        -- print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
-        -- print("(" .. plane_normal.x .. ", " .. plane_normal.y .. ")\n")
-        -- print("(" .. project_direction.x .. ", " .. project_direction.y .. ")\n")
-        -- print("(" .. project_direction:mul(self.size).x .. ", " .. project_direction:mul(self.size).y .. ")\n")
-        -- print("(" .. new_point.x .. ", " .. new_point.y .. ")\n")
-        -- print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
-        -- stop()
+        cls()
+        print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
+        print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
+        print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
+        print("(" .. plane_normal.x .. ", " .. plane_normal.y .. ")\n")
+        print("(" .. project_direction.x .. ", " .. project_direction.y .. ")\n")
+        print("(" .. project_direction:mul(self.size).x .. ", " .. project_direction:mul(self.size).y .. ")\n")
+        print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
+        if new_point != nil then
+          print("(" .. new_point.x .. ", " .. new_point.y .. ")\n")
+        end
+        stop()
       end
 
       local distance_ratio = get_point_distance(new_point, self.location) / get_point_distance(collider.circle2.center, self.location)
