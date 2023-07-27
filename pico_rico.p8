@@ -85,7 +85,7 @@ function min_in(array, getter)
   local smallest_element
 
   for _, v in ipairs(array) do
-    local value = getter != nil and getter(v) or v
+    local value = getter ~= nil and getter(v) or v
     if smallest_value == nil or value < smallest_value then
       smallest_value = value
       smallest_element = v
@@ -134,10 +134,10 @@ function new_point(x, y)
       return (self.x * p2.x) + (self.y * p2.y)
     end,
     is_in_window = function(self, window, exclude)
-      return ((exclude != nil and exclude.min_x == true) or self.x >= window.min_x) and
-             ((exclude != nil and exclude.max_x == true) or self.x <= window.max_x) and
-             ((exclude != nil and exclude.min_y == true) or self.y >= window.min_y) and
-             ((exclude != nil and exclude.max_y == true) or self.y <= window.max_y)
+      return ((exclude ~= nil and exclude.min_x == true) or self.x >= window.min_x) and
+             ((exclude ~= nil and exclude.max_x == true) or self.x <= window.max_x) and
+             ((exclude ~= nil and exclude.min_y == true) or self.y >= window.min_y) and
+             ((exclude ~= nil and exclude.max_y == true) or self.y <= window.max_y)
     end,
   }
 end
@@ -263,7 +263,7 @@ function segment_segment_intersect(p1, p2, p3, p4)
     )
   end
 
-  if p != nil and p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window) then
+  if p ~= nil and p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window) then
     return { p }
   else
     return {}
@@ -435,7 +435,7 @@ function bez_spline_from_string(str)
   local num_segments = next_token()
   local curves = {}
 
-  if #tokens != num_segments * 8 then
+  if #tokens ~= num_segments * 8 then
     stop("expected " .. num_segments * 8 .. " more numbers. got " .. #tokens)
   end
 
@@ -669,7 +669,7 @@ function new_rico(size, location, color)
         print("(" .. project_direction.x .. ", " .. project_direction.y .. ")\n")
         print("(" .. project_direction:mul(self.size).x .. ", " .. project_direction:mul(self.size).y .. ")\n")
         print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
-        if new_point != nil then
+        if new_point ~= nil then
           print("(" .. new_point.x .. ", " .. new_point.y .. ")\n")
         end
         stop()
@@ -966,7 +966,7 @@ update_map = {
 last_update_mode = 0
 
 function _draw()
-  if last_update_mode != game_mode then
+  if last_update_mode ~= game_mode then
     return
   end
 
