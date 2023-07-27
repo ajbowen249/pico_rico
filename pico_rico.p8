@@ -645,11 +645,12 @@ function new_rico(size, location, color)
       -- next step: deflection. could it be as simple as reflecting velocity noramal against the segment we hit and giving 1-ratio along that to velocity?
 
       local deflection = reflect_vector_against(
-        next_velocity:normal(),
+        -- negating velocity because we're thinking of it as the point hovering above the plane rather than the direction we're pointing
+        next_velocity:normal():mul(-1),
         closest_hit.segment.p2:sub(closest_hit.segment.p1):normal()
       ):normal():mul(1 - distance_ratio)
 
-      next_velocity = next_velocity:mul(distance_ratio):sub(deflection)
+      next_velocity = next_velocity:mul(distance_ratio):add(deflection)
       self.location = self.location:add(next_velocity)
     end,
     draw = function(self, window)
