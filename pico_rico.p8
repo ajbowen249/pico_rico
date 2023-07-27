@@ -208,7 +208,7 @@ function segment_circle_intersect(_p1, _p2, c, r)
 end
 
 --https://en.wikipedia.org/wiki/line%e2%80%93line_intersection#given_two_points_on_each_line_segment
-function segment_segment_intersect(p1, p2, p3, p4)
+function segment_segment_intersect(p1, p2, p3, p4, infinite)
   local tn = ((p1.x - p3.x) * (p3.y - p4.y)) - ((p1.y - p3.y) * (p3.x - p4.x))
   local td = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
   local t = tn / td
@@ -245,7 +245,7 @@ function segment_segment_intersect(p1, p2, p3, p4)
     )
   end
 
-  if p != nil and p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window) then
+  if p != nil and (infinite == true or (p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window))) then
     return { p }
   else
     return {}
@@ -284,8 +284,7 @@ function get_points_in_window(points, window, exclude)
 end
 
 function get_point_distance(p1, p2)
-  local d = p2:sub(p1)
-  return sqrt((d.x * d.x) + (d.y * d.y))
+  return p2:sub(p1):len()
 end
 
 -->8
@@ -610,8 +609,15 @@ function new_rico(size, location, color)
       -- amendment 1 per above: distance is from center point, then subtract the radius instead of picking a "start point". also project from center point to hit
       -- point instead of from the old "start point." this at least stopped the first observed >1 ratio. unsure if more cases exist
 
-      -- amendment 2 (todo): the starting assumption is bad thanks to accrued error. let's check if there are any first-circle (current location) hits first and
+      -- amendment 2: this is still wrong. new plan: project the segment we intersected out perpendicular to itself by our radius. the intersection of that
+      -- segment and the ray of our start position and velocity is the new center point
+
+      -- amendment 3 (todo): the starting assumption is bad thanks to accrued error. let's check if there are any first-circle (current location) hits first and
       -- translate ourselves out of whatever we've sunken into
+
+      function get_dist(pair)
+        return pair.distance
+      end
 
       local closest_hit = min_in(map(colliding_segments, function(seg)
         return min_in(map(seg.points, function(point)
@@ -620,29 +626,36 @@ function new_rico(size, location, color)
             segment = seg.segment,
             distance = get_point_distance(self.location, point) - self.size,
           }
-        end), function(pair)
-          return pair.distance
-        end)
-      end), function(pair)
-        return pair.distance
-      end)
+        end), get_dist)
+      end), get_dist)
 
-      local to_hit = closest_hit.point:sub(self.location)
-      local total_distance = collider.circle2.center:sub(collider.circle1.center)
+      local plane_normal = closest_hit.segment.p2:sub(closest_hit.segment.p1):normal()
 
-      local hit_on_total = project_vectors(to_hit, total_distance)
-      local distance_ratio = hit_on_total:len() / get_point_distance(self.location, collider.circle2.center)
+      -- screw, it; right-hand rule. hope i stick to that in level design
+      -- by that, i mean if it's possible to hit something from above, it better be going left to right, and right to left for hitting from below
+      -- that means the direction to project from is just 90deg counter-clockwize
+      -- but i'm actually going to rotate clockwise here because y is flipped from my usual thinking
+      local project_direction = new_point(plane_normal.y, -1 * plane_normal.x)
+      local project_vector = project_direction:mul(self.size)
 
-      -- cls()
-      -- print("ratio: " .. distance_ratio .. "\n")
-      -- print("len: " .. hit_on_total:len() .. "\n")
-      -- print("total: " .. get_point_distance(self.location, collider.circle2.center) .. "\n")
-      -- print("start: (" .. self.location.x .. ", " .. self.location.y .. ")\n")
-      -- print("hit: (" .. closest_hit.point.x .. ", " .. closest_hit.point.y .. ")\n")
-      -- print("on: (" .. hit_on_total.x .. ", " .. hit_on_total.y .. ")\n")
-      -- stop()
+      local seg_p1 = closest_hit.segment.p1:add(project_vector)
+      local seg_p2 = closest_hit.segment.p2:add(project_vector)
+      local new_point = segment_segment_intersect(seg_p1, seg_p2, self.location, collider.circle2.center, true)[1]
 
-      -- next step: deflection. could it be as simple as reflecting velocity noramal against the segment we hit and giving 1-ratio along that to velocity?
+      if new_point == nil then
+        -- cls()
+        -- print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
+        -- print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
+        -- print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
+        -- print("(" .. plane_normal.x .. ", " .. plane_normal.y .. ")\n")
+        -- print("(" .. project_direction.x .. ", " .. project_direction.y .. ")\n")
+        -- print("(" .. project_direction:mul(self.size).x .. ", " .. project_direction:mul(self.size).y .. ")\n")
+        -- print("(" .. new_point.x .. ", " .. new_point.y .. ")\n")
+        -- print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
+        -- stop()
+      end
+
+      local distance_ratio = get_point_distance(new_point, self.location) / get_point_distance(collider.circle2.center, self.location)
 
       local deflection = reflect_vector_against(
         -- negating velocity because we're thinking of it as the point hovering above the plane rather than the direction we're pointing
@@ -651,7 +664,7 @@ function new_rico(size, location, color)
       ):normal():mul(1 - distance_ratio)
 
       next_velocity = next_velocity:mul(distance_ratio):add(deflection)
-      self.location = self.location:add(next_velocity)
+      self.location = new_point:add(deflection)
     end,
     draw = function(self, window)
       if not self.location:is_in_window(window) then
