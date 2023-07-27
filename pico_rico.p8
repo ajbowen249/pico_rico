@@ -11,6 +11,7 @@ exclude_upper_y = { min_y = true } -- min_y because 0 is top
 
 gravity = -.4
 rico_max_speed = 3
+max_rotation_angle = 30 / 360
 
 -- game mode
 gm_menu = 1
@@ -48,6 +49,17 @@ function filter(array, func)
   end
 
   return filtered
+end
+
+function reduce(array, func, acc_init)
+  local acc = acc_init
+  for i, v in ipairs(array) do
+    if func(v, i) then
+      acc = func(acc, v)
+    end
+  end
+
+  return acc
 end
 
 function count_ex(array, func)
@@ -139,7 +151,17 @@ function new_point(x, y)
              ((exclude ~= nil and exclude.min_y == true) or self.y >= window.min_y) and
              ((exclude ~= nil and exclude.max_y == true) or self.y <= window.max_y)
     end,
+    to_mat21 = function(self)
+      return {
+        { self.x },
+        { self.y },
+      }
+    end
   }
+end
+
+function mat21_to_point(mat21)
+  return new_point(mat21[1][1], mat21[2][1])
 end
 
 -- takes points. from a data persepctive points and vectors are the same thing \_(ツ)_/
@@ -281,6 +303,20 @@ function lerp_2d(p0, p1, t)
     lerp(p0.x, p1.x, t),
     lerp(p0.y, p1.y, t)
   )
+end
+
+function mat22_mul_mat_21(mat22, mat21)
+  return {
+    { (mat22[1][1] * mat21[1][1]) + (mat22[1][2] * mat21[2][1]) },
+    { (mat22[2][1] * mat21[1][1]) + (mat22[2][2] * mat21[2][1]) },
+  }
+end
+
+function make_rotation_matrix(angle)
+  return {
+    { cos(angle), -1 * sin(angle) },
+    { sin(angle),      cos(angle) },
+  }
 end
 
 function new_window(min_x, min_y, max_x, max_y)
@@ -710,6 +746,8 @@ function init_level()
   level_state.ricos = {
     new_rico(5, new_point(-50, -60), 9),
   }
+
+  level_state.rotation = 0
 end
 
 function begin_level()
@@ -745,32 +783,49 @@ function draw_level()
   end
 end
 
+function apply_level_rotation(rotation, center)
+  local angle_diff = rotation - level_state.rotation
+  for i, asset in ipairs(level_state.assets) do
+    asset.points = map(asset.points, function(point)
+      return mat21_to_point(mat22_mul_mat_21(make_rotation_matrix(angle_diff), point:sub(center):to_mat21())):add(center)
+    end)
+  end
+
+  level_state.rotation = rotation
+end
+
 function update_level()
   if not level_state.initialized then
     init_level()
     return
   end
 
-  local move_camera_speed = 1
+  -- todo: base this on actual average when there is more than one
+  local rico_center_of_mass = level_state.ricos[1].location
 
-  if btn(0) then
-    level_state.camera.location.x -= move_camera_speed
-    -- level_state.ricos[1].location.x -= move_camera_speed
+  level_state.camera.location.x = rico_center_of_mass.x - 64
+  level_state.camera.location.y = rico_center_of_mass.y - 64
+
+  local holding_left = btn(0)
+  local holding_right = btn(1)
+
+  local rotate_speed = .005
+  local rotation = level_state.rotation
+
+  if holding_left and not holding_right then
+    rotation += rotate_speed
+  elseif holding_right and not holding_left then
+    rotation -= rotate_speed
   end
 
-  if btn(1) then
-    level_state.camera.location.x += move_camera_speed
-    -- level_state.ricos[1].location.x += move_camera_speed
+  if rotation > max_rotation_angle then
+    rotation = max_rotation_angle
+  elseif rotation < (max_rotation_angle * -1) then
+    rotation = max_rotation_angle * -1
   end
 
-  if btn(2) then
-    level_state.camera.location.y -= move_camera_speed
-    -- level_state.ricos[1].location.y -= move_camera_speed
-  end
-
-  if btn(3) then
-    level_state.camera.location.y += move_camera_speed
-    -- level_state.ricos[1].location.y += move_camera_speed
+  if rotation ~= level_state.rotation then
+    apply_level_rotation(rotation, rico_center_of_mass)
   end
 
   local window = level_state.camera:get_window()
