@@ -743,13 +743,15 @@ function new_rico(size, location, color)
 
       local seg_p1 = closest_hit.segment.p1:add(project_vector)
       local seg_p2 = closest_hit.segment.p2:add(project_vector)
-      local new_point = line_line_intersect(seg_p1, seg_p2, self.location, collider.circle2.center)[1]
+      local new_point = segment_segment_intersect(seg_p1, seg_p2, self.location, collider.circle2.center)[1]
 
       if new_point == nil then
         cls()
         print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
         print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
+        print("(" .. seg_p1.x .. ", " .. seg_p1.y .. ")\n")
         print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
+        print("(" .. seg_p2.x .. ", " .. seg_p2.y .. ")\n")
         print("(" .. plane_normal.x .. ", " .. plane_normal.y .. ")\n")
         print("(" .. project_direction.x .. ", " .. project_direction.y .. ")\n")
         print("(" .. project_direction:mul(self.size).x .. ", " .. project_direction:mul(self.size).y .. ")\n")
@@ -757,7 +759,16 @@ function new_rico(size, location, color)
         stop()
       end
 
+      if new_point == nil then
+        new_point = collider.circle2.center
+      end
+
       local distance_ratio = get_point_distance(new_point, self.location) / get_point_distance(collider.circle2.center, self.location)
+
+      -- improve: whyyyyyyyyyyyyy
+      if distance_ratio > 1 then
+        distance_ratio = 1
+      end
 
       local deflection = reflect_vector_against(
         -- negating velocity because we're thinking of it as the point hovering above the plane rather than the direction we're pointing
@@ -765,7 +776,27 @@ function new_rico(size, location, color)
         closest_hit.segment.p2:sub(closest_hit.segment.p1):normal()
       ):normal():mul(1 - distance_ratio)
 
+      if deflection:len() > rico_max_speed then
+        deflection = deflection:normal():mul(rico_max_speed)
+      end
+
       next_velocity = next_velocity:mul(distance_ratio):add(deflection)
+
+      if new_point:add(deflection).x < 0 then
+        cls()
+        print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
+        print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
+        print("(" .. new_point.x .. ", " .. new_point.y .. ")\n")
+        print("(" .. new_point:add(deflection).x .. ", " .. new_point:add(deflection).y .. ")\n")
+        print("" .. collider.circle2.center:sub(self.location):len() .. "\n")
+        print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
+        print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
+        print("(" .. plane_normal.x .. ", " .. plane_normal.y .. ")\n")
+        print("(" .. deflection.x .. ", " .. deflection.y .. ")\n")
+        print("" .. distance_ratio .. "\n")
+        stop()
+      end
+
       self.location = new_point:add(deflection)
       self.contact = closest_hit
     end,
@@ -803,7 +834,7 @@ function init_level()
   level_state.camera = new_camera(-70, -70)
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(50, -40), 9),
+    new_rico(5, new_point(40, -40), 9),
   }
 
   level_state.rotation = 0
