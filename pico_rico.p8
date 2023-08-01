@@ -411,6 +411,53 @@ function new_cubic_bezier_spline(...)
 
       return points
     end,
+    sample_with_fixed_length = function(self)
+      -- improve: this is hacked into place to see if long segments are part of the physics issues
+      local incr = 0.01
+      local target_dist = 50
+      local points = {}
+      for _, curve in ipairs(self.curves) do
+        local t = 0
+        while (t <= 1) do
+          if t > 1 then
+            t = 1
+          end
+
+          local q0 = lerp_2d(
+            curve.p1,
+            curve.p2,
+            t
+          )
+
+          local q1 = lerp_2d(
+            curve.p2,
+            curve.p3,
+            t
+          )
+
+          local q2 = lerp_2d(
+            curve.p3,
+            curve.p4,
+            t
+          )
+
+          local r0 = lerp_2d(q0, q1, t)
+          local r1 = lerp_2d(q1, q2, t)
+
+          local b = lerp_2d(r0, r1, t)
+
+          local at_distance = #points == 0 or get_point_distance(b, points[#points]) >= target_dist
+
+          if at_distance and (#points == 0 or not b:equals(points[#points])) then
+            points[#points + 1] = b
+          end
+
+          t = t + incr
+        end
+      end
+
+      return points
+    end,
   }
 end
 
@@ -756,7 +803,7 @@ function init_level()
   level_state.camera = new_camera(-70, -70)
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(-50, -60), 9),
+    new_rico(5, new_point(50, -40), 9),
   }
 
   level_state.rotation = 0
@@ -922,7 +969,8 @@ function update_loading_level()
     if asset_def.type == at_underfill then
       asset.color = asset_def.color
       local spline = bez_spline_from_string(asset_def.spline)
-      asset.points = spline:sample(bezier_spline_sample_incr)
+      asset.points = spline:sample_with_fixed_length(bezier_spline_sample_incr)
+      -- asset.points = spline:sample(bezier_spline_sample_incr)
     end
 
     level_state.assets[#level_state.assets + 1] = asset
