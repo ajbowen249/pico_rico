@@ -2,15 +2,18 @@ pico-8 cartridge // http://www.pico-8.com
 version 34
 __lua__
 
-#include constants.p8
-#include library.p8
-#include math.p8
-#include bezier.p8
-#include drawing.p8
-#include serialization.p8
-#include gameplay.p8
-#include levels.p8
-#include main_menu.p8
+-->8
+-- imports
+
+#include ./lib/constants.p8
+#include ./lib/library.p8
+#include ./lib/math.p8
+#include ./lib/bezier.p8
+#include ./lib/drawing.p8
+#include ./lib/serialization.p8
+#include ./lib/gameplay.p8
+#include ./lib/main_menu.p8
+#include ./lib/levels.p8
 
 -->8
 -- root hooks
