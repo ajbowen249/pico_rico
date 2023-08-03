@@ -991,9 +991,10 @@ end
 
 function apply_level_rotation(rotation, center)
   local angle_diff = rotation - level_state.rotation
+  local matrix = make_rotation_matrix(angle_diff)
   for i, asset in ipairs(level_state.assets) do
     asset.points = map(asset.points, function(point)
-      return mat21_to_point(mat22_mul_mat_21(make_rotation_matrix(angle_diff), point:sub(center):to_mat21())):add(center)
+      return mat21_to_point(mat22_mul_mat_21(matrix, point:sub(center):to_mat21())):add(center)
     end)
   end
 
