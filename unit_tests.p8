@@ -15,7 +15,7 @@ __lua__
 #include ./lib/main_menu.p8
 #include ./lib/levels.p8
 
-#include ./test/test_framework.p8
+#include ./test/framework.p8
 
 #include ./test/test_math.p8
 
