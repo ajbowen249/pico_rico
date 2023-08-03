@@ -57,14 +57,32 @@ function print_test_report(p_func)
   color(all_passed and 11 or 8)
   p_func(all_passed and "passed!" or "failed!")
 
+  local total_run = 0
+  local total_passed = 0
+  local total_failed = 0
+
   for _, t in ipairs(registered_tests) do
     color(6)
     p_func(t.description)
     color(8)
 
     for _, result in ipairs(t.results) do
+      total_run += 1
+
+      if result.passed then
+        total_passed += 1
+      else
+        total_failed += 1
+      end
+
       color(result.passed and 11 or 8)
       p_func("  " .. result.message)
     end
   end
+
+  color(all_passed and 11 or 8)
+
+  p_func("total run:  " .. total_run)
+  p_func("total pass: " .. total_passed)
+  p_func("total fail: " .. total_failed)
 end
