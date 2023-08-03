@@ -32,9 +32,7 @@ end
 function reduce(array, func, acc_init)
   local acc = acc_init
   for i, v in ipairs(array) do
-    if func(v, i) then
-      acc = func(acc, v)
-    end
+    acc = func(acc, v)
   end
 
   return acc

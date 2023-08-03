@@ -8,6 +8,6 @@ test("point: add", function(t)
 
   local p3 = p1:add(p2)
 
-  t:expect(p3.x == 13, "incorrect x: " .. p3.x)
-  t:expect(p3.y == 5, "incorrect y: " .. p3.y)
+  t:expect_eq(13, p3.x, "added xs")
+  t:expect_eq(5, p3.y, "added ys")
 end)
