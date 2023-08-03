@@ -121,6 +121,9 @@ function new_point(x, y)
   return {
     x = x,
     y = y,
+    to_string = function(self)
+      return "(" .. self.x .. ", " .. self.y .. ")"
+    end,
     equals = function(self, p2)
       return self.x == p2.x and self.y == p2.y
     end,
@@ -247,6 +250,50 @@ function line_line_intersect(p1, p2, p3, p4)
   }
 end
 
+function line_segment_intersect(p1, p2, p3, p4)
+  local denominator = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
+  if denominator == 0 then
+    return {}
+  end
+
+  local common_1 = (p1.x * p2.y) - (p1.y * p2.x)
+  local common_2 = (p3.x * p4.y) - (p3.y * p4.x)
+
+  local infinite_hit = new_point(
+    (common_1 * (p3.x - p4.x) - (p1.x - p2.x) * common_2) / denominator,
+    (common_1 * (p3.y - p4.y) - (p1.y - p2.y) * common_2) / denominator
+  )
+
+
+end
+
+function segment_segment_intersect_(p1, p2, p3, p4)
+  local infinite_hit = line_line_intersect(p1, p2, p3, p4)[1]
+  if infinite_hit == nil then
+    return {}
+  end
+
+  local segment_1_window = new_window(
+    min(p1.x, p2.x),
+    min(p1.y, p2.y),
+    max(p1.x, p2.x),
+    max(p1.y, p2.y)
+  )
+
+  local segment_2_window = new_window(
+    min(p3.x, p4.x),
+    min(p3.y, p4.y),
+    max(p3.x, p4.x),
+    max(p3.y, p4.y)
+  )
+
+  if infinite_hit:is_in_window(segment_1_window) and infinite_hit:is_in_window(segment_2_window) then
+    return { infinite_hit }
+  else
+    return {}
+  end
+end
+
 --https://en.wikipedia.org/wiki/line%e2%80%93line_intersection#given_two_points_on_each_line_segment
 function segment_segment_intersect(p1, p2, p3, p4)
   local tn = ((p1.x - p3.x) * (p3.y - p4.y)) - ((p1.y - p3.y) * (p3.x - p4.x))
@@ -273,17 +320,38 @@ function segment_segment_intersect(p1, p2, p3, p4)
 
   local p = nil
 
-  if t >= 0 and t <= 1 then
+  -- just a thought: cramming t and u into 0-1 is probably where this breaks down in fixed-point mode. that's probably why prescaling the values didn't work
+  -- where we really lost cardinality is in the division...
+
+  local tgtz = (tn > 0 and td > 0) or (tn < 0 and td < 0)
+  local ugtz = (un > 0 and ud > 0) or (un < 0 and ud < 0)
+
+  local tlto = abs(tn) < abs(td)
+  local ulto = abs(un) < abs(ud)
+
+  if tgtz and tlto then
     p = new_point(
-      p1.x + (t * (p2.x - p1.x)),
-      p1.y + (t * (p2.y - p1.y))
+      p1.x + ((tn * (p2.x - p1.x)) / td),
+      p1.y + ((tn * (p2.y - p1.y)) / td)
     )
-  elseif u >= 0 and u <= 1 then
+  elseif ugtz and ulto then
     p = new_point(
-      p3.x + (u * (p4.x - p3.x)),
-      p3.y + (u * (p4.y - p3.y))
+      p3.x + ((un * (p4.x - p3.x)) / ud),
+      p3.y + ((un * (p4.y - p3.y)) / ud)
     )
   end
+
+  -- if t >= 0 and t <= 1 then
+  --   p = new_point(
+  --     p1.x + (t * (p2.x - p1.x)),
+  --     p1.y + (t * (p2.y - p1.y))
+  --   )
+  -- elseif u >= 0 and u <= 1 then
+  --   p = new_point(
+  --     p3.x + (u * (p4.x - p3.x)),
+  --     p3.y + (u * (p4.y - p3.y))
+  --   )
+  -- end
 
   if p ~= nil and p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window) then
     return { p }
@@ -414,7 +482,7 @@ function new_cubic_bezier_spline(...)
     sample_with_fixed_length = function(self)
       -- improve: this is hacked into place to see if long segments are part of the physics issues
       local incr = 0.01
-      local target_dist = 50
+      local target_dist = 10
       local points = {}
       for _, curve in ipairs(self.curves) do
         local t = 0
@@ -634,6 +702,80 @@ function make_moving_circle_collider(center, size, velocity)
   }
 end
 
+-- note: returns center of circle where it intersects, not the point of intersection!
+function moving_circle_segment_intersect(c1, c2, size, p1, p2)
+  local plane_normal = p2:sub(p1):normal()
+
+  -- big problem with the assumption i'm about to make when using this for full collision detection:
+  -- when transitioning from one segment to another, if the slope goes up or down and the player is going slower than their size, the projected-out segment may
+  -- go past the postition segment entirely.
+
+  -- screw, it; right-hand rule. hope i stick to that in level design
+  -- by that, i mean if it's possible to hit something from above, it better be going left to right, and right to left for hitting from below
+  -- that means the direction to project from is just 90deg counter-clockwize
+  -- but i'm actually going to rotate clockwise here because y is flipped from my usual thinking
+  local project_direction = new_point(plane_normal.y, -1 * plane_normal.x)
+
+  local max_dist = get_point_distance(c1, c2)
+  -- fudge it a little, see above
+  max_dist += size
+
+  local project_vector = project_direction:mul(size)
+
+  -- add project_vector to go toward circle
+  -- add along plane normal to lengthen by size
+  local seg_p1 = p1:add(project_vector):add(plane_normal:mul(size * -1))
+  local seg_p2 = p2:add(project_vector):add(plane_normal:mul(size))
+  -- return segment_segment_intersect(seg_p1, seg_p2, c1, c2)
+
+  local infinite_hit = line_line_intersect(c1, c2, seg_p1, seg_p2)[1]
+  if infinite_hit == nil then
+    return {}
+  end
+
+  local segment_window = new_window(
+    min(seg_p1.x, seg_p2.x),
+    min(seg_p1.y, seg_p2.y),
+    max(seg_p1.x, seg_p2.x),
+    max(seg_p1.y, seg_p2.y)
+  )
+
+  if (get_point_distance(c1, infinite_hit) > max_dist and get_point_distance(c2, infinite_hit) > max_dist) or not infinite_hit:is_in_window(segment_window) then
+    return {}
+  end
+
+  -- printh("d: " .. max_dist .. " d2: " .. get_point_distance(c1, infinite_hit) .. " " .. infinite_hit:to_string() .. " " .. c1:to_string() .. " " .. c2:to_string() .. "\n" .. p1:to_string() .. " " .. p2:to_string() .. " " .. seg_p1:to_string() .. " " .. seg_p2:to_string())
+  return { infinite_hit }
+end
+
+function get_segments_colliding_with_moving_circle(c1, c2, size, window)
+  local level = game_levels[level_state.level]
+  local intersections = {}
+
+  for asset_i, asset in ipairs(level_state.assets) do
+    local asset_def = level.assets[asset_i]
+    if asset_def.type == at_underfill then
+      local points = get_points_in_window(asset.points, window)
+
+      for point_i, point in ipairs(points) do
+        if point_i < #points then
+          local next = points[point_i + 1]
+          local intersecting_points = moving_circle_segment_intersect(c1, c2, size, point, next)
+          if #intersecting_points > 0 then
+            intersections[#intersections + 1] = {
+              points = intersecting_points,
+              segment = { p1 = point, p2 = next },
+            }
+          end
+        end
+      end
+    end
+  end
+
+  return intersections
+end
+
+
 function new_rico(size, location, color)
   return {
     size = size,
@@ -641,20 +783,6 @@ function new_rico(size, location, color)
     velocity = new_point(0, 0),
     color = color,
     contact = nil,
-    draw_coll = function(self, window)
-      -- line(self.location.x - 5, self.location.y - 5, self.location.x + 5, self.location.y + 5, 14)
-      -- local colliding_segments = get_segments_colliding_with_segment(self.location:sub(new_point(5, 5)), self.location:add(new_point(5, 5)), window)
-      local colliding_segments = get_segments_colliding_with_circle(self.location, self.size, window)
-      if #colliding_segments > 0 then
-        for _, seg in ipairs(colliding_segments) do
-          line(seg.segment.p1.x + window.min_x, seg.segment.p1.y + window.min_y, seg.segment.p2.x + window.min_x, seg.segment.p2.y + window.min_y, 14)
-
-          for __, col_point in ipairs(seg.points) do
-            pset(col_point.x, col_point.y, 11)
-          end
-        end
-      end
-    end,
     update = function(self, window)
       local next_velocity = new_point(self.velocity.x, self.velocity.y - gravity)
       local next_speed = next_velocity:len()
@@ -665,19 +793,23 @@ function new_rico(size, location, color)
       -- start out assuming we will be able to happily translate forward. this collider is everything we could be in the next frame
       local collider = make_moving_circle_collider(self.location, self.size, next_velocity)
       local colliding_segments = {}
-      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle1.center, self.size, window)) do
-        colliding_segments[#colliding_segments + 1] = seg
-      end
+      -- for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle1.center, self.size, window)) do
+      --   colliding_segments[#colliding_segments + 1] = seg
+      -- end
 
-      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle2.center, self.size, window)) do
-        colliding_segments[#colliding_segments + 1] = seg
-      end
+      -- for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle2.center, self.size, window)) do
+      --   colliding_segments[#colliding_segments + 1] = seg
+      -- end
 
-      for _, seg in ipairs(get_segments_colliding_with_segment(collider.seg1.p1, collider.seg1.p2, window)) do
-        colliding_segments[#colliding_segments + 1] = seg
-      end
+      -- for _, seg in ipairs(get_segments_colliding_with_segment(collider.seg1.p1, collider.seg1.p2, window)) do
+      --   colliding_segments[#colliding_segments + 1] = seg
+      -- end
 
-      for _, seg in ipairs(get_segments_colliding_with_segment(collider.seg2.p1, collider.seg2.p2, window)) do
+      -- for _, seg in ipairs(get_segments_colliding_with_segment(collider.seg2.p1, collider.seg2.p2, window)) do
+      --   colliding_segments[#colliding_segments + 1] = seg
+      -- end
+
+      for _, seg in ipairs(get_segments_colliding_with_moving_circle(collider.circle1.center, collider.circle2.center, self.size, window)) do
         colliding_segments[#colliding_segments + 1] = seg
       end
 
@@ -732,38 +864,23 @@ function new_rico(size, location, color)
         end), get_dist)
       end), get_dist)
 
-      local plane_normal = closest_hit.segment.p2:sub(closest_hit.segment.p1):normal()
+      local next_point = closest_hit.point
+      -- local next_point = moving_circle_segment_intersect(collider.circle1.center, collider.circle2.center, self.size, closest_hit.segment.p1, closest_hit.segment.p2)[1]
 
-      -- screw, it; right-hand rule. hope i stick to that in level design
-      -- by that, i mean if it's possible to hit something from above, it better be going left to right, and right to left for hitting from below
-      -- that means the direction to project from is just 90deg counter-clockwize
-      -- but i'm actually going to rotate clockwise here because y is flipped from my usual thinking
-      local project_direction = new_point(plane_normal.y, -1 * plane_normal.x)
-      local project_vector = project_direction:mul(self.size)
-
-      local seg_p1 = closest_hit.segment.p1:add(project_vector)
-      local seg_p2 = closest_hit.segment.p2:add(project_vector)
-      local new_point = segment_segment_intersect(seg_p1, seg_p2, self.location, collider.circle2.center)[1]
-
-      if new_point == nil then
+      if next_point == nil then
         cls()
         print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
         print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
-        print("(" .. seg_p1.x .. ", " .. seg_p1.y .. ")\n")
         print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
-        print("(" .. seg_p2.x .. ", " .. seg_p2.y .. ")\n")
-        print("(" .. plane_normal.x .. ", " .. plane_normal.y .. ")\n")
-        print("(" .. project_direction.x .. ", " .. project_direction.y .. ")\n")
-        print("(" .. project_direction:mul(self.size).x .. ", " .. project_direction:mul(self.size).y .. ")\n")
         print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
         stop()
       end
 
-      if new_point == nil then
-        new_point = collider.circle2.center
+      if next_point == nil then
+        next_point = collider.circle2.center
       end
 
-      local distance_ratio = get_point_distance(new_point, self.location) / get_point_distance(collider.circle2.center, self.location)
+      local distance_ratio = get_point_distance(next_point, self.location) / get_point_distance(collider.circle2.center, self.location)
 
       -- improve: whyyyyyyyyyyyyy
       if distance_ratio > 1 then
@@ -782,22 +899,21 @@ function new_rico(size, location, color)
 
       next_velocity = next_velocity:mul(distance_ratio):add(deflection)
 
-      if new_point:add(deflection).x < 0 then
-        cls()
-        print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
-        print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
-        print("(" .. new_point.x .. ", " .. new_point.y .. ")\n")
-        print("(" .. new_point:add(deflection).x .. ", " .. new_point:add(deflection).y .. ")\n")
-        print("" .. collider.circle2.center:sub(self.location):len() .. "\n")
-        print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
-        print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
-        print("(" .. plane_normal.x .. ", " .. plane_normal.y .. ")\n")
-        print("(" .. deflection.x .. ", " .. deflection.y .. ")\n")
-        print("" .. distance_ratio .. "\n")
-        stop()
-      end
+      -- if next_point:add(deflection).x < 0 then
+      --   cls()
+      --   print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
+      --   print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
+      --   print("(" .. next_point.x .. ", " .. next_point.y .. ")\n")
+      --   print("(" .. next_point:add(deflection).x .. ", " .. next_point:add(deflection).y .. ")\n")
+      --   print("" .. collider.circle2.center:sub(self.location):len() .. "\n")
+      --   print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
+      --   print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
+      --   print("(" .. deflection.x .. ", " .. deflection.y .. ")\n")
+      --   print("" .. distance_ratio .. "\n")
+      --   stop()
+      -- end
 
-      self.location = new_point:add(deflection)
+      self.location = next_point:add(deflection)
       self.contact = closest_hit
     end,
     draw = function(self, window)
@@ -812,8 +928,6 @@ function new_rico(size, location, color)
         self.size,
         self.color
       )
-
-      self:draw_coll(window)
     end,
     on_flick = function(self, world_plane_normal)
       if self.contact == nil then
@@ -834,7 +948,7 @@ function init_level()
   level_state.camera = new_camera(-70, -70)
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(40, -40), 9),
+    new_rico(5, new_point(-40, -70), 9),
   }
 
   level_state.rotation = 0
