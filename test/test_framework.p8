@@ -24,6 +24,36 @@ function new_test(description, func)
 
       return passed
     end,
+    expect_true = function(self, value, message)
+      local passed = value == true
+      local final_message = message
+
+      if not passed then
+        final_message = message .. ": value false"
+      end
+
+      self.results[#self.results + 1] = {
+        passed = passed,
+        message = final_message,
+      }
+
+      return passed
+    end,
+    expect_false = function(self, value, message)
+      local passed = value ~= true
+      local final_message = message
+
+      if not passed then
+        final_message = message .. ": value was true"
+      end
+
+      self.results[#self.results + 1] = {
+        passed = passed,
+        message = final_message,
+      }
+
+      return passed
+    end,
     run = function(self)
       self:func()
       self.passed = reduce(self.results, function(acc, res)
