@@ -4,13 +4,14 @@ __lua__
 
 registered_tests = {}
 
-function new_test(description, func)
+function new_test(description, func, tag)
   return {
     description = description,
     func = func,
     results = {},
     skipped = false,
     skip_message = "",
+    tag = tag,
     skip = function(self, message)
       self.skipped = true
       self.skip_message = message
@@ -77,18 +78,22 @@ function new_test(description, func)
   }
 end
 
-function test(description, func)
-  registered_tests[#registered_tests + 1] = new_test(description, func)
+function test(description, func, tag)
+  registered_tests[#registered_tests + 1] = new_test(description, func, tag)
 end
 
 some_failed = false
 
-function run_all_tests()
+function run_all_tests(test_list)
   for _, t in ipairs(registered_tests) do
-    t:run()
+    if test_list == nil or some(test_list, function(t_name)
+      return t_name == t.tag
+    end) then
+      t:run()
 
-    if not t.passed and not t.skipped then
-      some_failed = true
+      if not t.passed and not t.skipped then
+        some_failed = true
+      end
     end
   end
 end

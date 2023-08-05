@@ -21,7 +21,13 @@ function print_line(msg)
   print(msg .. "\n")
 end
 
+local args = stat(6)
+local test_list = nil
+if args != nil and args != "" then
+  test_list = split(args, " ")
+end
+
 cls()
-run_all_tests()
+run_all_tests(test_list)
 print_test_report(print_line)
 print_test_report(printh)

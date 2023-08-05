@@ -93,4 +93,4 @@ test("intersect: two infinite lines 2", function(t)
   local intersection = intersections[1]
   t:expect_eq(912.844, intersection.x, "x == 912.844", .01)
   t:expect_eq(501.205, intersection.y, "y == 501.205", .01)
-end)
+end, "bad_infinite_line")
