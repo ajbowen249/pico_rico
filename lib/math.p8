@@ -327,7 +327,6 @@ function moving_circle_segment_intersect(c1, c2, size, p1, p2)
   local seg_p1 = p1:add(project_vector):add(plane_normal:mul(size * -1))
   local seg_p2 = p2:add(project_vector):add(plane_normal:mul(size))
 
-  printh(seg_p1:to_string() .. " -- " .. seg_p2:to_string())
   -- return segment_segment_intersect(seg_p1, seg_p2, c1, c2)
 
   local infinite_hit = line_line_intersect(c1, c2, seg_p1, seg_p2)[1]
