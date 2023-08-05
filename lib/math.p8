@@ -128,7 +128,15 @@ function segment_circle_intersect(_p1, _p2, c, r)
 end
 
 --https://en.wikipedia.org/wiki/line%e2%80%93line_intersection#given_two_points_on_each_line
-function line_line_intersect(p1, p2, p3, p4)
+function line_line_intersect(_p1, _p2, _p3, _p4)
+  -- we run out of cardinality and overflow from all this multiplication before point values even hit the thousands.
+  -- offset everything relative to p1 to retain some space and shift back later
+
+  local p1 = new_point(0, 0)
+  local p2 = _p2:sub(_p1)
+  local p3 = _p3:sub(_p1)
+  local p4 = _p4:sub(_p1)
+
   local denominator = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
   if denominator == 0 then
     return {}
@@ -139,9 +147,9 @@ function line_line_intersect(p1, p2, p3, p4)
 
   return {
     new_point(
-      (common_1 * (p3.x - p4.x) - (p1.x - p2.x) * common_2) / denominator,
-      (common_1 * (p3.y - p4.y) - (p1.y - p2.y) * common_2) / denominator
-    )
+      ((common_1 * (p3.x - p4.x)) - ((p1.x - p2.x) * common_2)) / denominator,
+      ((common_1 * (p3.y - p4.y)) - ((p1.y - p2.y) * common_2)) / denominator
+    ):add(_p1)
   }
 end
 

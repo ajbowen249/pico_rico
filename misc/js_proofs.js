@@ -86,7 +86,15 @@ function segment_segment_intersect(p1, p2, p3, p4) {
   }
 }
 
-function line_line_intersect(p1, p2, p3, p4) {
+function line_line_intersect(_p1, _p2, _p3, _p4) {
+  // we run out of cardinality and overflow from all this multiplication before point values even hit the thousands.
+  // offset everything relative to p1 to retain some space and shift back later
+
+  const p1 = new_point(0, 0);
+  const p2 = new_point(_p2.x - _p1.x, _p2.y - _p1.y);
+  const p3 = new_point(_p3.x - _p1.x, _p3.y - _p1.y);
+  const p4 = new_point(_p4.x - _p1.x, _p4.y - _p1.y);
+
   const denominator = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x));
   if ( denominator == 0) {
     return {};
@@ -95,10 +103,14 @@ function line_line_intersect(p1, p2, p3, p4) {
   const common_1 = (p1.x * p2.y) - (p1.y * p2.x);
   const common_2 = (p3.x * p4.y) - (p3.y * p4.x);
 
+  const mid = (p3.x - p4.x);
+  console.log(`(p3.x - p4.x): ${mid}`);
+  console.log(`common_1 * mid: ${common_1 * mid}`);
+
   return [
     new_point(
-      (common_1 * (p3.x - p4.x) - (p1.x - p2.x) * common_2) / denominator,
-      (common_1 * (p3.y - p4.y) - (p1.y - p2.y) * common_2) / denominator
+      ((common_1 * (p3.x - p4.x) - (p1.x - p2.x) * common_2) / denominator) + _p1.x,
+      ((common_1 * (p3.y - p4.y) - (p1.y - p2.y) * common_2) / denominator) + _p1.y
     ),
   ];
 }

@@ -76,9 +76,10 @@ test("intersect: two segments 3", function(t)
 end)
 
 test("intersect: two infinite lines 2", function(t)
-  -- fascinating...the segment-segment intersect algorithem works fine with these values, but this one is broken!
+  -- fascinating...the segment-segment intersect algorithem works fine with these values, but this one was broken!
   -- x is coming back as -792.667
   -- confirmed working in javascript
+  -- fixed by offsetting points relative to p1 before calculating the intersection, then offset back when returned
   local p1 = new_point(912.3442, 500.6497)
   local p2 = new_point(915.0197, 503.6231)
 
