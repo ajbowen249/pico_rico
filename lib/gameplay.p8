@@ -101,52 +101,6 @@ function make_moving_circle_collider(center, size, velocity)
   }
 end
 
--- note: returns center of circle where it intersects, not the point of intersection!
-function moving_circle_segment_intersect(c1, c2, size, p1, p2)
-  local plane_normal = p2:sub(p1):normal()
-
-  -- big problem with the assumption i'm about to make when using this for full collision detection:
-  -- when transitioning from one segment to another, if the slope goes up or down and the player is going slower than their size, the projected-out segment may
-  -- go past the postition segment entirely.
-
-  -- screw, it; right-hand rule. hope i stick to that in level design
-  -- by that, i mean if it's possible to hit something from above, it better be going left to right, and right to left for hitting from below
-  -- that means the direction to project from is just 90deg counter-clockwize
-  -- but i'm actually going to rotate clockwise here because y is flipped from my usual thinking
-  local project_direction = new_point(plane_normal.y, -1 * plane_normal.x)
-
-  local max_dist = get_point_distance(c1, c2)
-  -- fudge it a little, see above
-  max_dist += size
-
-  local project_vector = project_direction:mul(size)
-
-  -- add project_vector to go toward circle
-  -- add along plane normal to lengthen by size
-  local seg_p1 = p1:add(project_vector):add(plane_normal:mul(size * -1))
-  local seg_p2 = p2:add(project_vector):add(plane_normal:mul(size))
-  -- return segment_segment_intersect(seg_p1, seg_p2, c1, c2)
-
-  local infinite_hit = line_line_intersect(c1, c2, seg_p1, seg_p2)[1]
-  if infinite_hit == nil then
-    return {}
-  end
-
-  local segment_window = new_window(
-    min(seg_p1.x, seg_p2.x),
-    min(seg_p1.y, seg_p2.y),
-    max(seg_p1.x, seg_p2.x),
-    max(seg_p1.y, seg_p2.y)
-  )
-
-  if (get_point_distance(c1, infinite_hit) > max_dist and get_point_distance(c2, infinite_hit) > max_dist) or not infinite_hit:is_in_window(segment_window) then
-    return {}
-  end
-
-  -- printh("d: " .. max_dist .. " d2: " .. get_point_distance(c1, infinite_hit) .. " " .. infinite_hit:to_string() .. " " .. c1:to_string() .. " " .. c2:to_string() .. "\n" .. p1:to_string() .. " " .. p2:to_string() .. " " .. seg_p1:to_string() .. " " .. seg_p2:to_string())
-  return { infinite_hit }
-end
-
 function get_segments_colliding_with_moving_circle(c1, c2, size, window)
   local level = game_levels[level_state.level]
   local intersections = {}
@@ -269,9 +223,9 @@ function new_rico(size, location, color)
       if next_point == nil then
         cls()
         print("(" .. self.location.x .. ", " .. self.location.y .. ")\n")
+        print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
         print("(" .. closest_hit.segment.p1.x .. ", " .. closest_hit.segment.p1.y .. ")\n")
         print("(" .. closest_hit.segment.p2.x .. ", " .. closest_hit.segment.p2.y .. ")\n")
-        print("(" .. collider.circle2.center.x .. ", " .. collider.circle2.center.y .. ")\n")
         stop()
       end
 

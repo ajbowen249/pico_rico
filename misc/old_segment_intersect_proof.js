@@ -86,9 +86,25 @@ function segment_segment_intersect(p1, p2, p3, p4) {
   }
 }
 
-const tp1 = new_point(2.5677, 72.9829);
-const tp2 = new_point(52.876, 72.8492);
-const tp3 = new_point(40, 69.9997);
-const tp4 = new_point(40, 73.9997);
+function t1() {
+  const tp1 = new_point(2.5677, 72.9829);
+  const tp2 = new_point(52.876, 72.8492);
+  const tp3 = new_point(40, 69.9997);
+  const tp4 = new_point(40, 73.9997);
 
-const res = segment_segment_intersect(tp1, tp2, tp3, tp4);
+  const res = segment_segment_intersect(tp1, tp2, tp3, tp4);
+  console.log(res);
+}
+
+function t2() {
+  const tp1 = new_point(912.3442, 500.6497);
+  const tp2 = new_point(915.0197, 503.6231);
+
+  const tp3 = new_point(896.7417, 492.9106);
+  const tp4 = new_point(920.830, 505.3188);
+
+  const res = segment_segment_intersect(tp1, tp2, tp3, tp4);
+  console.log(res);
+}
+
+t2();

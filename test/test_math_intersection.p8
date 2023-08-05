@@ -57,3 +57,39 @@ test("intersect: two infinite lines", function(t)
   t:expect_eq(40, intersection.x, "x == 40")
   t:expect_eq(72.8834, intersection.y, "y == 72.8834", .01)
 end)
+
+test("intersect: two segments 3", function(t)
+  local p1 = new_point(912.3442, 500.6497)
+  local p2 = new_point(915.0197, 503.6231)
+
+  local p3 = new_point(896.7417, 492.9106)
+  local p4 = new_point(920.830, 505.3188)
+
+  local intersections = segment_segment_intersect(p1, p2, p3, p4)
+  if not t:expect_eq(1, #intersections, "exactly one intersection") then
+    return
+  end
+
+  local intersection = intersections[1]
+  t:expect_eq(912.844, intersection.x, "x == 912.844", .01)
+  t:expect_eq(501.205, intersection.y, "y == 501.205", .01)
+end)
+
+test("intersect: two infinite lines 2", function(t)
+  -- fascinating...the segment-segment intersect algorithem works fine with these values, but this one is broken!
+  -- x is coming back as -792.667
+  local p1 = new_point(912.3442, 500.6497)
+  local p2 = new_point(915.0197, 503.6231)
+
+  local p3 = new_point(896.7417, 492.9106)
+  local p4 = new_point(920.830, 505.3188)
+
+  local intersections = line_line_intersect(p1, p2, p3, p4)
+  if not t:expect_eq(1, #intersections, "exactly one intersection") then
+    return
+  end
+
+  local intersection = intersections[1]
+  t:expect_eq(912.844, intersection.x, "x == 912.844", .01)
+  t:expect_eq(501.205, intersection.y, "y == 501.205", .01)
+end)
