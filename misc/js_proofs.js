@@ -86,6 +86,23 @@ function segment_segment_intersect(p1, p2, p3, p4) {
   }
 }
 
+function line_line_intersect(p1, p2, p3, p4) {
+  const denominator = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x));
+  if ( denominator == 0) {
+    return {};
+  }
+
+  const common_1 = (p1.x * p2.y) - (p1.y * p2.x);
+  const common_2 = (p3.x * p4.y) - (p3.y * p4.x);
+
+  return [
+    new_point(
+      (common_1 * (p3.x - p4.x) - (p1.x - p2.x) * common_2) / denominator,
+      (common_1 * (p3.y - p4.y) - (p1.y - p2.y) * common_2) / denominator
+    ),
+  ];
+}
+
 function t1() {
   const tp1 = new_point(2.5677, 72.9829);
   const tp2 = new_point(52.876, 72.8492);
@@ -107,4 +124,16 @@ function t2() {
   console.log(res);
 }
 
-t2();
+function t3() {
+  const tp1 = new_point(912.3442, 500.6497);
+  const tp2 = new_point(915.0197, 503.6231);
+
+  const tp3 = new_point(896.7417, 492.9106);
+  const tp4 = new_point(920.830, 505.3188);
+
+  const res = line_line_intersect(tp1, tp2, tp3, tp4);
+  console.log(res);
+}
+
+
+t3();
