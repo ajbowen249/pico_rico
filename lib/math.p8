@@ -181,14 +181,20 @@ function segment_segment_intersect_(p1, p2, p3, p4)
 end
 
 --https://en.wikipedia.org/wiki/line%e2%80%93line_intersection#given_two_points_on_each_line_segment
-function segment_segment_intersect(p1, p2, p3, p4)
+function segment_segment_intersect(_p1, _p2, _p3, _p4)
+  -- offset to preserve some cardinality
+  local p1 = new_point(0, 0)
+  local p2 = _p2:sub(_p1)
+  local p3 = _p3:sub(_p1)
+  local p4 = _p4:sub(_p1)
+
   local tn = ((p1.x - p3.x) * (p3.y - p4.y)) - ((p1.y - p3.y) * (p3.x - p4.x))
   local td = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
-  local t = tn / td
+  -- local t = tn / td
 
   local un = ((p1.x - p3.x) * (p1.y - p2.y)) - ((p1.y - p3.y) * (p1.x - p2.x))
   local ud = ((p1.x - p2.x) * (p3.y - p4.y)) - ((p1.y - p2.y) * (p3.x - p4.x))
-  local u = un / ud
+  -- local u = un / ud
 
   local segment_1_window = new_window(
     min(p1.x, p2.x),
@@ -240,7 +246,7 @@ function segment_segment_intersect(p1, p2, p3, p4)
   -- end
 
   if p ~= nil and p:is_in_window(segment_1_window) and p:is_in_window(segment_2_window) then
-    return { p }
+    return { p:add(_p1) }
   else
     return {}
   end
