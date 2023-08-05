@@ -9,8 +9,18 @@ function new_test(description, func)
     description = description,
     func = func,
     results = {},
-    expect_eq = function(self, expected, actual, message)
+    skipped = false,
+    skip_message = "",
+    skip = function(self, message)
+      self.skipped = true
+      self.skip_message = message
+    end,
+    expect_eq = function(self, expected, actual, message, margin)
       local passed = expected == actual
+      if margin != nil then
+        passed = actual >= (expected - margin) and actual <= (expected + margin)
+      end
+
       local final_message = message
 
       if not passed then
@@ -71,30 +81,30 @@ function test(description, func)
   registered_tests[#registered_tests + 1] = new_test(description, func)
 end
 
-all_passed = true
+some_failed = false
 
 function run_all_tests()
   for _, t in ipairs(registered_tests) do
     t:run()
 
-    if not t.passed then
-      all_passed = false
+    if not t.passed and not t.skipped then
+      some_failed = true
     end
   end
 end
 
 function print_test_report(p_func)
-  color(all_passed and 11 or 8)
-  p_func(all_passed and "passed!" or "failed!")
+  color(some_failed and 8 or 11)
+  p_func(some_failed and "failed!" or "passed!")
 
   local total_run = 0
   local total_passed = 0
   local total_failed = 0
+  local total_skipped = 0
 
   for _, t in ipairs(registered_tests) do
     color(6)
     p_func(t.description)
-    color(8)
 
     for _, result in ipairs(t.results) do
       total_run += 1
@@ -108,11 +118,18 @@ function print_test_report(p_func)
       color(result.passed and 11 or 8)
       p_func("  " .. result.message)
     end
+
+    if t.skipped then
+      color(10)
+      p_func("skipped: " .. t.skip_message)
+      total_skipped += 1
+    end
   end
 
-  color(all_passed and 11 or 8)
+  color(some_failed and 8 or 11)
 
   p_func("total run:  " .. total_run)
   p_func("total pass: " .. total_passed)
   p_func("total fail: " .. total_failed)
+  p_func("total skip: " .. total_skipped)
 end

@@ -2,9 +2,6 @@ pico-8 cartridge // http://www.pico-8.com
 version 34
 __lua__
 
--->8
--- imports
-
 #include ./lib/constants.p8
 #include ./lib/library.p8
 #include ./lib/math.p8
@@ -18,6 +15,7 @@ __lua__
 #include ./test/framework.p8
 
 #include ./test/test_math.p8
+#include ./test/test_math_intersection.p8
 
 function print_line(msg)
   print(msg .. "\n")
