@@ -37,5 +37,23 @@ test("intersect: two segments 2", function(t)
 
   local intersection = intersections[1]
   t:expect_eq(40, intersection.x, "x == 40")
-  t:expect_eq(72.8834, intersection.y, "y == 72.8834", .5)
+  t:expect_eq(72.8834, intersection.y, "y == 72.8834", .01)
+end)
+
+test("intersect: two infinite lines", function(t)
+  -- these are the same coordinates as the skipped segment test above
+  local p1 = new_point(2.5677, 72.9829);
+  local p2 = new_point(52.876, 72.8492);
+
+  local p3 = new_point(40, 69.9997);
+  local p4 = new_point(40, 73.9997);
+
+  local intersections = line_line_intersect(p1, p2, p3, p4)
+  if not t:expect_eq(1, #intersections, "exactly one intersection") then
+    return
+  end
+
+  local intersection = intersections[1]
+  t:expect_eq(40, intersection.x, "x == 40")
+  t:expect_eq(72.8834, intersection.y, "y == 72.8834", .01)
 end)

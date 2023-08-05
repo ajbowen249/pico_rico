@@ -111,7 +111,7 @@ function print_test_report(p_func)
 
       if result.passed then
         total_passed += 1
-      else
+      elseif not t.skipped then
         total_failed += 1
       end
 
@@ -129,7 +129,7 @@ function print_test_report(p_func)
   color(some_failed and 8 or 11)
 
   p_func("total run:  " .. total_run)
+  p_func("total skip: " .. total_skipped)
   p_func("total pass: " .. total_passed)
   p_func("total fail: " .. total_failed)
-  p_func("total skip: " .. total_skipped)
 end
