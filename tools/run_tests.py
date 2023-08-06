@@ -1,10 +1,16 @@
 #!/usr/bin/python3
 
 import os
+import sys
 
-test_executable = os.path.relpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../test/unit_tests.p8"))
+path = os.path
+
+test_executable = path.relpath(path.join(path.dirname(path.abspath(__file__)), "../test/unit_tests.p8"))
 
 base_command = "pico8.exe -x ./{test_executable}".format(test_executable = test_executable)
-print(base_command)
+command = base_command
 
-os.system(base_command)
+if len(sys.argv) > 1:
+    command = "{base_command} -p {tag_list}".format(base_command = base_command, tag_list = " ".join(sys.argv[1:]))
+
+os.system(command)
