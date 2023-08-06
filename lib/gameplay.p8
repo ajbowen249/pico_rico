@@ -7,6 +7,12 @@ __lua__
 
 level_state = nil
 
+function despawn(object)
+  level_state.objects = filter(level_state.objects, function(obj)
+    return obj ~= object
+  end)
+end
+
 function new_camera(x, y)
   return {
     location = new_point(x, y),
@@ -126,20 +132,24 @@ function get_segments_colliding_with_moving_circle(c1, c2, size, window)
 end
 
 local rico_mass_to_area = pi * (2.5 * 2.5)
+function calculate_rico_radius(mass)
+  local area = mass * rico_mass_to_area
+  return sqrt(area / pi)
+end
 
 function new_rico(mass, location, color)
   return {
     mass = mass,
+    radius = calculate_rico_radius(mass),
     location = location,
     velocity = new_point(0, 0),
     color = color,
     contact = nil,
-    get_radius = function(self)
-      local area = self.mass * rico_mass_to_area
-      return sqrt(area / pi)
+    set_mass = function(self, new_mass)
+      self.mass = new_mass
+      self.radius = calculate_rico_radius(new_mass)
     end,
     update = function(self, window)
-      local radius = self:get_radius()
       local next_velocity = new_point(self.velocity.x, self.velocity.y - gravity)
       local next_speed = next_velocity:len()
       if next_speed > rico_max_speed then
@@ -147,13 +157,13 @@ function new_rico(mass, location, color)
       end
 
       -- start out assuming we will be able to happily translate forward. this collider is everything we could be in the next frame
-      local collider = make_moving_circle_collider(self.location, radius, next_velocity)
+      local collider = make_moving_circle_collider(self.location, self.radius, next_velocity)
       local colliding_segments = {}
-      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle1.center, radius, window)) do
+      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle1.center, self.radius, window)) do
         colliding_segments[#colliding_segments + 1] = seg
       end
 
-      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle2.center, radius, window)) do
+      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle2.center, self.radius, window)) do
         colliding_segments[#colliding_segments + 1] = seg
       end
 
@@ -165,7 +175,7 @@ function new_rico(mass, location, color)
         colliding_segments[#colliding_segments + 1] = seg
       end
 
-      -- for _, seg in ipairs(get_segments_colliding_with_moving_circle(collider.circle1.center, collider.circle2.center, radius, window)) do
+      -- for _, seg in ipairs(get_segments_colliding_with_moving_circle(collider.circle1.center, collider.circle2.center, self.radius, window)) do
       --   colliding_segments[#colliding_segments + 1] = seg
       -- end
 
@@ -215,13 +225,13 @@ function new_rico(mass, location, color)
           return {
             point = point,
             segment = seg.segment,
-            distance = get_point_distance(self.location, point) - radius,
+            distance = get_point_distance(self.location, point) - self.radius,
           }
         end), get_dist)
       end), get_dist)
 
       -- local next_point = closest_hit.point
-      local next_point = moving_circle_segment_intersect(collider.circle1.center, collider.circle2.center, radius, closest_hit.segment.p1, closest_hit.segment.p2)[1]
+      local next_point = moving_circle_segment_intersect(collider.circle1.center, collider.circle2.center, self.radius, closest_hit.segment.p1, closest_hit.segment.p2)[1]
 
       if next_point == nil then
         cls()
@@ -281,7 +291,7 @@ function new_rico(mass, location, color)
         self.location.x -
           level_state.camera.location.x,
         self.location.y - level_state.camera.location.y,
-        self:get_radius(),
+        self.radius,
         self.color
       )
     end,
@@ -310,6 +320,26 @@ function new_rico_bulb(x, y)
       spr(1, p.x - 4, p.y - 4);
     end,
     update = function(self)
+      local touching_ricos = filter(level_state.ricos, function(rico)
+        local distance = get_point_distance(rico.location, self.location)
+        return distance <= rico.radius + self.radius
+      end)
+
+      if #touching_ricos == 0 then
+        return
+      end
+
+      -- maybe this should be the closest, but, if they're all touching, does it really matter?
+      local touching_rico = touching_ricos[1]
+
+      cls()
+      print("rico: " .. touching_rico.location:to_string() .. " r: " .. touching_rico.radius)
+      print("self: " .. self.location:to_string() .. " r: " .. self.radius)
+      print("distance: " .. get_point_distance(touching_rico.location, self.location))
+      stop()
+
+      touching_rico:set_mass(touching_rico.mass + 1)
+      despawn(self)
     end,
   }
 end

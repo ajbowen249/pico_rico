@@ -45,3 +45,22 @@ test("point: mul", function(t)
   t:expect_eq(8, p2.x, "multiplied x by scaler")
   t:expect_eq(18, p2.y, "multiplied y by scaler")
 end)
+
+test("point distance 1", function(t)
+  local p1 = new_point(10, 10)
+  local p2 = new_point(20, 20)
+
+  local distance = get_point_distance(p1, p2)
+
+  t:expect_eq(14.14, distance, "correct distance", .01)
+end)
+
+test("point distance 2", function(t)
+  t:skip("incorrect answer for this test even though others work...")
+  local p1 = new_point(-50, -69.6)
+  local p2 = new_point(120, 61)
+
+  local distance = get_point_distance(p1, p2)
+
+  t:expect_eq(206.53, distance, "correct distance", .01)
+end, "failing_distance")

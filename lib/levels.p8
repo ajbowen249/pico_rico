@@ -26,7 +26,27 @@ game_levels = {
       {
         name = "bulb 1",
         type = ot_pickup_rico_bulb,
-        location = { x = 17, y = 60 },
+        location = { x = 20, y = 60 },
+      },
+      {
+        name = "bulb 2",
+        type = ot_pickup_rico_bulb,
+        location = { x = 40, y = 60 },
+      },
+      {
+        name = "bulb 3",
+        type = ot_pickup_rico_bulb,
+        location = { x = 60, y = 60 },
+      },
+      {
+        name = "bulb 4",
+        type = ot_pickup_rico_bulb,
+        location = { x = 80, y = 60 },
+      },
+      {
+        name = "bulb 5",
+        type = ot_pickup_rico_bulb,
+        location = { x = 120, y = 61 },
       },
     },
   }
