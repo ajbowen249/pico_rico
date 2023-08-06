@@ -322,6 +322,21 @@ function begin_level()
   game_mode = gm_level
 end
 
+debug_hud = true
+
+function draw_hud()
+  local total_ricos = reduce(level_state.ricos, function(acc, rico)
+    return acc + rico.size
+  end, 0)
+
+  circfill(6, 6, 3, 10)
+  print("" .. total_ricos, 12, 4, 10)
+
+  if debug_hud then
+    print("" .. level_state.ricos[1].location.x .. ", " .. level_state.ricos[1].location.y, 0, 120)
+  end
+end
+
 function draw_level()
   local level = game_levels[level_state.level]
   cls(level.background_color)
@@ -348,7 +363,7 @@ function draw_level()
     rico:draw(window)
   end
 
-  print("" .. level_state.ricos[1].location.x .. ", " .. level_state.ricos[1].location.y)
+  draw_hud()
 end
 
 function apply_level_rotation(rotation, center)
@@ -424,4 +439,3 @@ function update_level()
     end
   end
 end
-
