@@ -10,6 +10,7 @@ function new_test(description, func, tag)
     func = func,
     results = {},
     skipped = false,
+    ran = false,
     skip_message = "",
     tag = tag,
     skip = function(self, message)
@@ -74,6 +75,8 @@ function new_test(description, func, tag)
 
         return acc
       end, true)
+
+      self.ran = true
     end
   }
 end
@@ -108,26 +111,27 @@ function print_test_report(p_func)
   local total_skipped = 0
 
   for _, t in ipairs(registered_tests) do
-    color(6)
-    p_func(t.description)
-
-    for _, result in ipairs(t.results) do
+    if t.ran then
       total_run += 1
+      color(6)
+      p_func(t.description)
 
-      if result.passed then
-        total_passed += 1
-      elseif not t.skipped then
-        total_failed += 1
+      if t.skipped then
+        color(10)
+        p_func("skipped: " .. t.skip_message)
+        total_skipped += 1
+      else
+        for _, result in ipairs(t.results) do
+          if result.passed then
+            total_passed += 1
+          elseif not t.skipped then
+            total_failed += 1
+          end
+
+          color(result.passed and 11 or 8)
+          p_func("  " .. result.message)
+        end
       end
-
-      color(result.passed and 11 or 8)
-      p_func("  " .. result.message)
-    end
-
-    if t.skipped then
-      color(10)
-      p_func("skipped: " .. t.skip_message)
-      total_skipped += 1
     end
   end
 
