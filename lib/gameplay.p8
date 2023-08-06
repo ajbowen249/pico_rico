@@ -332,12 +332,6 @@ function new_rico_bulb(x, y)
       -- maybe this should be the closest, but, if they're all touching, does it really matter?
       local touching_rico = touching_ricos[1]
 
-      cls()
-      print("rico: " .. touching_rico.location:to_string() .. " r: " .. touching_rico.radius)
-      print("self: " .. self.location:to_string() .. " r: " .. self.radius)
-      print("distance: " .. get_point_distance(touching_rico.location, self.location))
-      stop()
-
       touching_rico:set_mass(touching_rico.mass + 1)
       despawn(self)
     end,
