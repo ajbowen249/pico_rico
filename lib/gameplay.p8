@@ -26,8 +26,7 @@ function get_segments_colliding_with_circle(location, size, window)
   local intersections = {}
 
   for object_i, object in ipairs(level_state.objects) do
-    local object_def = level.objects[object_i]
-    if object_def.type == ot_terrain_underfill then
+    if object.type == ot_terrain_underfill then
       local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
@@ -53,8 +52,7 @@ function get_segments_colliding_with_segment(p1, p2, window)
   local intersections = {}
 
   for object_i, object in ipairs(level_state.objects) do
-    local object_def = level.objects[object_i]
-    if object_def.type == ot_terrain_underfill then
+    if object.type == ot_terrain_underfill then
       local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
@@ -106,8 +104,7 @@ function get_segments_colliding_with_moving_circle(c1, c2, size, window)
   local intersections = {}
 
   for object_i, object in ipairs(level_state.objects) do
-    local object_def = level.objects[object_i]
-    if object_def.type == ot_terrain_underfill then
+    if object.type == ot_terrain_underfill then
       local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
@@ -297,6 +294,20 @@ function new_rico(size, location, color)
   }
 end
 
+function new_rico_bulb(x, y)
+  return {
+    type = ot_pickup_rico_bulb,
+    location = new_point(x, y),
+    radius = 4,
+    draw = function(self)
+      local p = self.location:sub(level_state.camera.location)
+      spr(1, p.x - 4, p.y - 4);
+    end,
+    update = function(self)
+    end,
+  }
+end
+
 function init_level()
   level_state.camera = new_camera(-70, -70)
   level_state.initialized = true
@@ -322,16 +333,14 @@ function draw_level()
   local window = level_state.camera:get_window()
 
   for i, object in ipairs(level_state.objects) do
-    local object_def = level.objects[i]
-    if object_def.type == ot_terrain_underfill then
+    if object.type == ot_terrain_underfill then
       local points = map(get_points_in_window(object.points, window, exclude_upper_y), function(point)
-        return new_point(
-          point.x - level_state.camera.location.x,
-          point.y - level_state.camera.location.y
-        )
+        return point:sub(level_state.camera.location)
       end)
 
-      draw_underfill(points, screen_size - 1, object_def.color)
+      draw_underfill(points, screen_size - 1, object.color)
+    elseif object.draw ~= nil then
+      object:draw()
     end
   end
 
@@ -346,9 +355,13 @@ function apply_level_rotation(rotation, center)
   local angle_diff = rotation - level_state.rotation
   local matrix = make_rotation_matrix(angle_diff)
   for i, object in ipairs(level_state.objects) do
-    object.points = map(object.points, function(point)
-      return mat21_to_point(mat22_mul_mat_21(matrix, point:sub(center):to_mat21())):add(center)
-    end)
+    if object.points ~= nil then
+      object.points = map(object.points, function(point)
+        return mat21_to_point(mat22_mul_mat_21(matrix, point:sub(center):to_mat21())):add(center)
+      end)
+    elseif object.location ~= nil then
+      object.location = mat21_to_point(mat22_mul_mat_21(matrix, object.location:sub(center):to_mat21())):add(center)
+    end
   end
 
   level_state.rotation = rotation
@@ -402,6 +415,12 @@ function update_level()
 
     for i, rico in ipairs(level_state.ricos) do
       rico:on_flick(world_plane_normal)
+    end
+  end
+
+  for i, object in ipairs(level_state.objects) do
+    if object.update ~= nil then
+      object:update()
     end
   end
 end
