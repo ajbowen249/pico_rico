@@ -25,10 +25,10 @@ function get_segments_colliding_with_circle(location, size, window)
   local level = game_levels[level_state.level]
   local intersections = {}
 
-  for asset_i, asset in ipairs(level_state.assets) do
-    local asset_def = level.assets[asset_i]
-    if asset_def.type == at_underfill then
-      local points = get_points_in_window(asset.points, window)
+  for object_i, object in ipairs(level_state.objects) do
+    local object_def = level.objects[object_i]
+    if object_def.type == ot_underfill then
+      local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
         if point_i < #points then
@@ -52,10 +52,10 @@ function get_segments_colliding_with_segment(p1, p2, window)
   local level = game_levels[level_state.level]
   local intersections = {}
 
-  for asset_i, asset in ipairs(level_state.assets) do
-    local asset_def = level.assets[asset_i]
-    if asset_def.type == at_underfill then
-      local points = get_points_in_window(asset.points, window)
+  for object_i, object in ipairs(level_state.objects) do
+    local object_def = level.objects[object_i]
+    if object_def.type == ot_underfill then
+      local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
         if point_i < #points then
@@ -105,10 +105,10 @@ function get_segments_colliding_with_moving_circle(c1, c2, size, window)
   local level = game_levels[level_state.level]
   local intersections = {}
 
-  for asset_i, asset in ipairs(level_state.assets) do
-    local asset_def = level.assets[asset_i]
-    if asset_def.type == at_underfill then
-      local points = get_points_in_window(asset.points, window)
+  for object_i, object in ipairs(level_state.objects) do
+    local object_def = level.objects[object_i]
+    if object_def.type == ot_underfill then
+      local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
         if point_i < #points then
@@ -321,17 +321,17 @@ function draw_level()
 
   local window = level_state.camera:get_window()
 
-  for i, asset in ipairs(level_state.assets) do
-    local asset_def = level.assets[i]
-    if asset_def.type == at_underfill then
-      local points = map(get_points_in_window(asset.points, window, exclude_upper_y), function(point)
+  for i, object in ipairs(level_state.objects) do
+    local object_def = level.objects[i]
+    if object_def.type == ot_underfill then
+      local points = map(get_points_in_window(object.points, window, exclude_upper_y), function(point)
         return new_point(
           point.x - level_state.camera.location.x,
           point.y - level_state.camera.location.y
         )
       end)
 
-      draw_underfill(points, screen_size - 1, asset_def.color)
+      draw_underfill(points, screen_size - 1, object_def.color)
     end
   end
 
@@ -345,8 +345,8 @@ end
 function apply_level_rotation(rotation, center)
   local angle_diff = rotation - level_state.rotation
   local matrix = make_rotation_matrix(angle_diff)
-  for i, asset in ipairs(level_state.assets) do
-    asset.points = map(asset.points, function(point)
+  for i, object in ipairs(level_state.objects) do
+    object.points = map(object.points, function(point)
       return mat21_to_point(mat22_mul_mat_21(matrix, point:sub(center):to_mat21())):add(center)
     end)
   end

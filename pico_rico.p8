@@ -2,7 +2,6 @@ pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
 
--->8
 -- imports
 
 #include ./lib/constants.p8
