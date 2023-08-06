@@ -125,15 +125,21 @@ function get_segments_colliding_with_moving_circle(c1, c2, size, window)
   return intersections
 end
 
+local rico_mass_to_area = pi * (2.5 * 2.5)
 
-function new_rico(size, location, color)
+function new_rico(mass, location, color)
   return {
-    size = size,
+    mass = mass,
     location = location,
     velocity = new_point(0, 0),
     color = color,
     contact = nil,
+    get_radius = function(self)
+      local area = self.mass * rico_mass_to_area
+      return sqrt(area / pi)
+    end,
     update = function(self, window)
+      local radius = self:get_radius()
       local next_velocity = new_point(self.velocity.x, self.velocity.y - gravity)
       local next_speed = next_velocity:len()
       if next_speed > rico_max_speed then
@@ -141,13 +147,13 @@ function new_rico(size, location, color)
       end
 
       -- start out assuming we will be able to happily translate forward. this collider is everything we could be in the next frame
-      local collider = make_moving_circle_collider(self.location, self.size, next_velocity)
+      local collider = make_moving_circle_collider(self.location, radius, next_velocity)
       local colliding_segments = {}
-      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle1.center, self.size, window)) do
+      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle1.center, radius, window)) do
         colliding_segments[#colliding_segments + 1] = seg
       end
 
-      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle2.center, self.size, window)) do
+      for _, seg in ipairs(get_segments_colliding_with_circle(collider.circle2.center, radius, window)) do
         colliding_segments[#colliding_segments + 1] = seg
       end
 
@@ -159,7 +165,7 @@ function new_rico(size, location, color)
         colliding_segments[#colliding_segments + 1] = seg
       end
 
-      -- for _, seg in ipairs(get_segments_colliding_with_moving_circle(collider.circle1.center, collider.circle2.center, self.size, window)) do
+      -- for _, seg in ipairs(get_segments_colliding_with_moving_circle(collider.circle1.center, collider.circle2.center, radius, window)) do
       --   colliding_segments[#colliding_segments + 1] = seg
       -- end
 
@@ -209,13 +215,13 @@ function new_rico(size, location, color)
           return {
             point = point,
             segment = seg.segment,
-            distance = get_point_distance(self.location, point) - self.size,
+            distance = get_point_distance(self.location, point) - radius,
           }
         end), get_dist)
       end), get_dist)
 
       -- local next_point = closest_hit.point
-      local next_point = moving_circle_segment_intersect(collider.circle1.center, collider.circle2.center, self.size, closest_hit.segment.p1, closest_hit.segment.p2)[1]
+      local next_point = moving_circle_segment_intersect(collider.circle1.center, collider.circle2.center, radius, closest_hit.segment.p1, closest_hit.segment.p2)[1]
 
       if next_point == nil then
         cls()
@@ -275,7 +281,7 @@ function new_rico(size, location, color)
         self.location.x -
           level_state.camera.location.x,
         self.location.y - level_state.camera.location.y,
-        self.size,
+        self:get_radius(),
         self.color
       )
     end,
@@ -326,7 +332,7 @@ debug_hud = true
 
 function draw_hud()
   local total_ricos = reduce(level_state.ricos, function(acc, rico)
-    return acc + rico.size
+    return acc + rico.mass
   end, 0)
 
   circfill(6, 6, 3, 10)

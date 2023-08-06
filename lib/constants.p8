@@ -23,3 +23,5 @@ bezier_spline_sample_incr = .25
 
 -- global state
 game_mode = gm_menu
+
+pi = 3.14159265
