@@ -27,7 +27,7 @@ function get_segments_colliding_with_circle(location, size, window)
 
   for object_i, object in ipairs(level_state.objects) do
     local object_def = level.objects[object_i]
-    if object_def.type == ot_underfill then
+    if object_def.type == ot_terrain_underfill then
       local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
@@ -54,7 +54,7 @@ function get_segments_colliding_with_segment(p1, p2, window)
 
   for object_i, object in ipairs(level_state.objects) do
     local object_def = level.objects[object_i]
-    if object_def.type == ot_underfill then
+    if object_def.type == ot_terrain_underfill then
       local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
@@ -107,7 +107,7 @@ function get_segments_colliding_with_moving_circle(c1, c2, size, window)
 
   for object_i, object in ipairs(level_state.objects) do
     local object_def = level.objects[object_i]
-    if object_def.type == ot_underfill then
+    if object_def.type == ot_terrain_underfill then
       local points = get_points_in_window(object.points, window)
 
       for point_i, point in ipairs(points) do
@@ -323,7 +323,7 @@ function draw_level()
 
   for i, object in ipairs(level_state.objects) do
     local object_def = level.objects[i]
-    if object_def.type == ot_underfill then
+    if object_def.type == ot_terrain_underfill then
       local points = map(get_points_in_window(object.points, window, exclude_upper_y), function(point)
         return new_point(
           point.x - level_state.camera.location.x,
