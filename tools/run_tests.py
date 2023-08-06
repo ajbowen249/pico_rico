@@ -11,6 +11,6 @@ base_command = "pico8.exe -x ./{test_executable}".format(test_executable = test_
 command = base_command
 
 if len(sys.argv) > 1:
-    command = "{base_command} -p {tag_list}".format(base_command = base_command, tag_list = " ".join(sys.argv[1:]))
+    command = "{base_command} -p {tag_list}".format(base_command = base_command, tag_list = ",".join(sys.argv[1:]))
 
 os.system(command)

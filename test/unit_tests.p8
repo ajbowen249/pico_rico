@@ -24,7 +24,7 @@ end
 local args = stat(6)
 local test_list = nil
 if args != nil and args != "" then
-  test_list = split(args, " ")
+  test_list = split(args)
 end
 
 cls()
