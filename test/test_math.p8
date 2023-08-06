@@ -56,11 +56,11 @@ test("point distance 1", function(t)
 end)
 
 test("point distance 2", function(t)
-  t:skip("incorrect answer for this test even though others work...")
+  -- this one was failing and coming back with zero. the current fix is the bail-back to len_imprecise
   local p1 = new_point(-50, -69.6)
   local p2 = new_point(120, 61)
 
   local distance = get_point_distance(p1, p2)
 
-  t:expect_eq(206.53, distance, "correct distance", .01)
+  t:expect_eq(214.37, distance, "correct distance", .01)
 end, "failing_distance")

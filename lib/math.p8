@@ -34,8 +34,22 @@ function new_point(x, y)
     div = function(self, scaler)
       return new_point(self.x / scaler, self.y / scaler)
     end,
+    len_imprecise = function(self)
+      -- shifting right is the same as dividing by 2, and every shift right gains a bit of precision in the integer
+      local factor = 2
+      local x2 = self.x >> factor
+      local y2 = self.y >> factor
+      return sqrt((x2 * x2) + (y2 * y2)) << factor
+    end,
     len = function(self)
-      return sqrt(((self.x) * (self.x)) + (self.y * self.y))
+      local squared_sum = (self.x * self.x) + (self.y * self.y)
+      -- squaring these numbers means even small distances can really blow this up
+      -- as a hack, detect that we have overflowed and drop some fractional precision
+      if squared_sum < 0 then
+        return self:len_imprecise()
+      end
+
+      return sqrt(squared_sum)
     end,
     normal = function(self)
       return self:div(self:len())
