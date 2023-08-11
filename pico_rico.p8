@@ -11,8 +11,12 @@ __lua__
 #include ./lib/drawing.p8
 #include ./lib/serialization.p8
 #include ./lib/gameplay.p8
-#include ./lib/main_menu.p8
 #include ./lib/levels.p8
+
+#include ./build/levels/test.p8
+#include ./lib/level_index.p8
+
+#include ./lib/main_menu.p8
 
 -->8
 -- root hooks

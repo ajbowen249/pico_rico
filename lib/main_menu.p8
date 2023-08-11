@@ -10,6 +10,20 @@ main_menu_state = nil
 mms_main = 1
 mms_level_select = 2
 
+function build_level_select_options()
+  local options = {}
+  for i, level in ipairs(game_levels) do
+    options[#options + 1] = {
+      name = level.title,
+      action = function()
+        load_level(i)
+      end,
+    }
+  end
+
+  return options
+end
+
 main_menu_screens = {
   {
     name = "main menu",
@@ -32,14 +46,7 @@ main_menu_screens = {
   {
     name = "level select",
     previous = mms_main,
-    options = {
-      {
-        name = "test level",
-        action = function()
-          load_level(1)
-        end,
-      },
-    }
+    options = build_level_select_options()
   },
 }
 
