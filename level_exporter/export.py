@@ -15,12 +15,11 @@ __lua__
 # It's not a function because you want it to pause in the scope of whatever you're debugging.
 # __import__('code').interact(local=dict(globals(), **locals()))
 
-ot_terrain_underfill = 1
-
 class ObjectTypes(Enum):
     level_props = -1
     terrain_underfill = 1
     rico_bulb = 100
+    level_spawn = 200
 
 class Props(Enum):
     object_type = "prp_object_type"
@@ -59,13 +58,13 @@ def obj_to_lua(obj):
 class Underfill:
     def __init__(self, obj):
         if obj.type != "CURVE":
-            raise "Expected underfill object to be CURVE"
+            raise Exception("Expected underfill object to be CURVE")
 
         self.name = obj.name
         self.color = obj[Props.color.value]
 
         if len(obj.data.splines) != 1:
-            raise "Expected 1 spline in underfill curve"
+            raise Exception("Expected 1 spline in underfill curve")
 
         spline = obj.data.splines[0]
 
@@ -102,13 +101,15 @@ class Underfill:
             "spline": ",".join(["{:.4f}".format(val) for val in self.out_values])
         }
 
+def point_from_location(location):
+    return {
+        "x": location[0],
+        "y": convert_y(location[1]),
+    }
 class RicoBulb:
     def __init__(self, obj):
         self.name = obj.name
-        self.location = {
-            "x": obj.location[0],
-            "y": convert_y(obj.location[1]),
-        }
+        self.location = point_from_location(obj.location)
 
     def to_pico8_value(self):
         return {
@@ -129,10 +130,14 @@ class PicoRicoLevel:
         self.title = obj[Props.title.value]
         self.background_color = obj[Props.background_color.value]
 
+    def set_spawn(self, spawn):
+        self.spawn = spawn
+
     def to_dict(self):
         return {
             "name": self.name,
             "title": self.title,
+            "spawn": self.spawn,
             "background_color": self.background_color,
             "objects": [ obj.to_pico8_value() for obj in self.objects]
         }
@@ -153,6 +158,8 @@ def build_level(name):
             level.consume_props_object(obj)
         elif object_type == ObjectTypes.rico_bulb.name:
             level.add_object(RicoBulb(obj))
+        elif object_type == ObjectTypes.level_spawn.name:
+            level.set_spawn(point_from_location(obj.location))
 
     return level
 

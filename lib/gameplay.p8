@@ -132,10 +132,11 @@ function get_segments_colliding_with_moving_circle(c1, c2, size, window)
 end
 
 function init_level()
+  local level = game_levels[level_state.level]
   level_state.camera = new_camera(-70, -70)
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(-40, -70), 9),
+    new_rico(5, new_point(level.spawn.x, level.spawn.y), 9),
   }
 
   level_state.rotation = 0

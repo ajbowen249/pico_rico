@@ -33,6 +33,9 @@ ot_terrain_underfill = 1
 -- pickups
 ot_pickup_rico_bulb = 100
 
+-- control objects
+ot_level_spawn = 200
+
 loading_level_state = nil
 
 -- loading states
