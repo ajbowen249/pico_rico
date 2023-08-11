@@ -25,3 +25,16 @@ bezier_spline_sample_incr = .25
 game_mode = gm_menu
 
 pi = 3.14159265
+
+-- object types
+-- terrain
+ot_terrain_underfill = 1
+
+-- pickups
+ot_pickup_rico_bulb = 100
+
+loading_level_state = nil
+
+-- loading states
+ls_init = 1
+ls_load = 2

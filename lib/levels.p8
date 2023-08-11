@@ -5,19 +5,6 @@ __lua__
 -->8
 -- levels
 
--- object types
--- terrain
-ot_terrain_underfill = 1
-
--- pickups
-ot_pickup_rico_bulb = 100
-
-loading_level_state = nil
-
--- loading states
-ls_init = 1
-ls_load = 2
-
 function load_level(level)
   game_mode = gm_loading_level
   loading_level_state = {

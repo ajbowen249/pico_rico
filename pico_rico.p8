@@ -5,6 +5,10 @@ __lua__
 -- imports
 
 #include ./lib/constants.p8
+
+#include ./build/levels/test.p8
+#include ./lib/level_index.p8
+
 #include ./lib/library.p8
 #include ./lib/math.p8
 #include ./lib/bezier.p8
@@ -12,10 +16,6 @@ __lua__
 #include ./lib/serialization.p8
 #include ./lib/gameplay.p8
 #include ./lib/levels.p8
-
-#include ./build/levels/test.p8
-#include ./lib/level_index.p8
-
 #include ./lib/main_menu.p8
 
 -->8
