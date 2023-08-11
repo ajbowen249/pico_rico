@@ -14,6 +14,8 @@ __lua__
 #include ./lib/bezier.p8
 #include ./lib/drawing.p8
 #include ./lib/serialization.p8
+#include ./lib/rico.p8
+#include ./lib/rico_bulb.p8
 #include ./lib/gameplay.p8
 #include ./lib/levels.p8
 #include ./lib/main_menu.p8
