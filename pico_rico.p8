@@ -16,6 +16,7 @@ __lua__
 #include ./lib/serialization.p8
 #include ./lib/rico.p8
 #include ./lib/rico_bulb.p8
+#include ./lib/level_end.p8
 #include ./lib/gameplay.p8
 #include ./lib/levels.p8
 #include ./lib/main_menu.p8

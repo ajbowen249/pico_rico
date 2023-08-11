@@ -44,6 +44,8 @@ function update_loading_level()
       -- object.points = spline:sample(bezier_spline_sample_incr)
     elseif object_def.type == ot_pickup_rico_bulb then
       object = new_rico_bulb(object_def.location.x, object_def.location.y)
+    elseif object_def.type == ot_level_end then
+      object = new_level_end(object_def)
     end
 
     level_state.objects[#level_state.objects + 1] = object

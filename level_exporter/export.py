@@ -20,12 +20,14 @@ class ObjectTypes(Enum):
     terrain_underfill = 1
     rico_bulb = 100
     level_spawn = 200
+    level_end = 201
 
 class Props(Enum):
     object_type = "prp_object_type"
     color = "prp_color"
     title = "prp_title"
     background_color = "prp_background_color"
+    ricos_required = "prp_ricos_required"
 
 def get_args():
     argv = sys.argv
@@ -118,6 +120,23 @@ class RicoBulb:
             "location": self.location,
         }
 
+class LevelEnd:
+    def __init__(self, obj):
+        self.name = obj.name
+        self.location = point_from_location(obj.location)
+        self.ricos_required = obj[Props.ricos_required.value]
+        self.radius = obj.scale[0]
+
+    def to_pico8_value(self):
+        return {
+            "name": self.name,
+            "type": ObjectTypes.level_end.value,
+            "location": self.location,
+            "ricos_required": self.ricos_required,
+            "radius": self.radius,
+        }
+
+
 class PicoRicoLevel:
     def __init__(self, name):
         self.name = name
@@ -160,6 +179,8 @@ def build_level(name):
             level.add_object(RicoBulb(obj))
         elif object_type == ObjectTypes.level_spawn.name:
             level.set_spawn(point_from_location(obj.location))
+        elif object_type == ObjectTypes.level_end.name:
+            level.add_object(LevelEnd(obj))
 
     return level
 

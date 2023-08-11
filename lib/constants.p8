@@ -35,6 +35,7 @@ ot_pickup_rico_bulb = 100
 
 -- control objects
 ot_level_spawn = 200
+ot_level_end = 201
 
 loading_level_state = nil
 
