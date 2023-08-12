@@ -263,7 +263,7 @@ function update_level()
   end
 
   if should_flick then
-    local world_plane_normal = mat21_to_point(mat22_mul_mat_21(make_rotation_matrix(rotation), new_point(1, 0):to_mat21()))
+    local world_plane_normal = new_point(1, 0):rotate(rotation)
 
     for i, rico in ipairs(level_state.ricos) do
       rico:on_flick(world_plane_normal)

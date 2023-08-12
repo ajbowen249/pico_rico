@@ -181,22 +181,18 @@ function new_rico(mass, location, color)
         return
       end
 
-      circfill(
-        self.location.x - level_state.camera.location.x,
-        self.location.y - level_state.camera.location.y,
-        self.radius,
-        self.color
-      )
+      local offset_location = self.location:sub(level_state.camera.location)
 
-      local rotation_line = mat21_to_point(mat22_mul_mat_21(make_rotation_matrix(self.rotation), new_point(self.radius, 0):to_mat21()))
+      -- draw body
+      circfill(offset_location.x, offset_location.y, self.radius, self.color)
 
-      line(
-        self.location.x - level_state.camera.location.x,
-        self.location.y - level_state.camera.location.y,
-        self.location.x + rotation_line.x - level_state.camera.location.x,
-        self.location.y + rotation_line.y - level_state.camera.location.y,
-        11
-      )
+      local rotation_normal = new_point(1, 0):rotate(self.rotation)
+      local rotation_line = rotation_normal:mul(self.radius):add(offset_location)
+
+      -- debug line
+      if true or debug_hud then
+        line(offset_location.x, offset_location.y, rotation_line.x, rotation_line.y, 11)
+      end
     end,
     on_flick = function(self, world_plane_normal)
       if self.contact == nil then

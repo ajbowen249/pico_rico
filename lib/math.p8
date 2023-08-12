@@ -68,6 +68,9 @@ function new_point(x, y)
         { self.x },
         { self.y },
       }
+    end,
+    rotate = function(self, angle)
+      return mat21_to_point(mat22_mul_mat_21(make_rotation_matrix(angle), self:to_mat21()))
     end
   }
 end
