@@ -17,6 +17,7 @@ max_rotation_angle = 30 / 360
 gm_menu = 1
 gm_loading_level = 2
 gm_level = 3
+gm_level_end = 4
 
 -- improve: fixed-length sampling!
 bezier_spline_sample_incr = .25

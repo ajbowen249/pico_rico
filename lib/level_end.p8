@@ -5,6 +5,7 @@ __lua__
 function new_level_end(def)
   local ticks_to_ui = 30
   local ticks_to_end = 90
+  local ui_pop_frames = 3
 
   return {
     name = def.name,
@@ -17,6 +18,7 @@ function new_level_end(def)
     ticks_in_area = 0,
     update = function(self, window, context)
       player_in_area = get_point_distance(self.location, context.rico_center_of_mass) <= self.radius
+      self.has_enough_ricos = get_total_ricos() >= self.ricos_required
 
       if player_in_area and self.player_in_area then
         self.ticks_in_area += 1
@@ -24,8 +26,11 @@ function new_level_end(def)
         self.ticks_in_area = 0
       end
 
+      if not self.has_enough_ricos and self.ticks_in_area > ticks_to_ui + ui_pop_frames then
+        self.ticks_in_area = ticks_to_ui + ui_pop_frames
+      end
+
       self.player_in_area = player_in_area
-      self.has_enough_ricos = get_total_ricos() >= self.ricos_required
 
       if self.has_enough_ricos and self.ticks_in_area >= ticks_to_end then
         end_level_success()
@@ -37,10 +42,10 @@ function new_level_end(def)
       end
 
       local pop_anim_frame = self.ticks_in_area - ticks_to_ui
-      local color = self.has_enough_ricos and 10 or 8
+      local color = self.has_enough_ricos and 11 or 8
       local anim_point_offset = new_point(0, 0)
 
-      if pop_anim_frame < 3 then
+      if pop_anim_frame < ui_pop_frames then
         color = 4 - pop_anim_frame
         anim_point_offset.y = pop_anim_frame
       end

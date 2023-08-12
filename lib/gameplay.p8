@@ -146,8 +146,9 @@ function begin_level()
   game_mode = gm_level
 end
 
-function end_level_success()
-  game_mode = gm_menu
+function end_level_success(end_zone)
+  init_level_end_state(end_zone)
+  game_mode = gm_level_end
 end
 
 debug_hud = false
@@ -161,8 +162,8 @@ end
 function draw_hud()
   local total_ricos = get_total_ricos()
 
-  circfill(6, 6, 3, 10)
-  print("" .. total_ricos, 12, 4, 10)
+  -- circfill(6, 6, 3, 10)
+  -- print("" .. total_ricos, 12, 4, 10)
 
   if debug_hud then
     print("" .. level_state.ricos[1].location.x .. ", " .. level_state.ricos[1].location.y, 0, 120)

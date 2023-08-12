@@ -16,6 +16,7 @@ __lua__
 #include ./lib/serialization.p8
 #include ./lib/rico.p8
 #include ./lib/rico_bulb.p8
+#include ./lib/level_end_screen.p8
 #include ./lib/level_end.p8
 #include ./lib/gameplay.p8
 #include ./lib/levels.p8
@@ -28,12 +29,14 @@ draw_map = {
   draw_main_menu,
   draw_loading_level,
   draw_level,
+  draw_level_end_screen,
 }
 
 update_map = {
   update_main_menu,
   update_loading_level,
   update_level,
+  update_level_end_screen,
 }
 
 last_update_mode = 0
