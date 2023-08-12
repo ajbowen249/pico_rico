@@ -16,11 +16,13 @@ function new_rico(mass, location, color)
     velocity = new_point(0, 0),
     color = color,
     contact = nil,
+    rotation = 0,
     set_mass = function(self, new_mass)
       self.mass = new_mass
       self.radius = calculate_rico_radius(new_mass)
     end,
     update = function(self, window)
+      local previous_contact = self.contact
       local next_velocity = new_point(self.velocity.x, self.velocity.y - gravity)
       local next_speed = next_velocity:len()
       if next_speed > rico_max_speed then
@@ -150,7 +152,28 @@ function new_rico(mass, location, color)
       --   stop()
       -- end
 
-      self.location = next_point:add(deflection)
+      next_point = next_point:add(deflection)
+
+      if previous_contact ~= nil and closest_hit ~= nil then
+        local direction = next_point:sub(self.location)
+        local distance = direction:len()
+        direction = direction:normal()
+
+        local perimeter = self.radius * 2 * pi
+        -- angles in pico-8 are 0-1, so ratio of perimiter traveled is change in angle
+        local angle_delta = distance / perimeter
+
+        local plane_dir = closest_hit.segment.p2:sub(closest_hit.segment.p1):normal()
+        local dot = plane_dir:dot(direction)
+
+        if dot >= 0 then
+          angle_delta *= -1
+        end
+
+        self.rotation += angle_delta
+      end
+
+      self.location = next_point
       self.contact = closest_hit
     end,
     draw = function(self, window)
@@ -159,11 +182,20 @@ function new_rico(mass, location, color)
       end
 
       circfill(
-        self.location.x -
-          level_state.camera.location.x,
+        self.location.x - level_state.camera.location.x,
         self.location.y - level_state.camera.location.y,
         self.radius,
         self.color
+      )
+
+      local rotation_line = mat21_to_point(mat22_mul_mat_21(make_rotation_matrix(self.rotation), new_point(self.radius, 0):to_mat21()))
+
+      line(
+        self.location.x - level_state.camera.location.x,
+        self.location.y - level_state.camera.location.y,
+        self.location.x + rotation_line.x - level_state.camera.location.x,
+        self.location.y + rotation_line.y - level_state.camera.location.y,
+        11
       )
     end,
     on_flick = function(self, world_plane_normal)
