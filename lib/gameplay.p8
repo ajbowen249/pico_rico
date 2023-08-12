@@ -146,12 +146,20 @@ function begin_level()
   game_mode = gm_level
 end
 
+function end_level_success()
+  game_mode = gm_menu
+end
+
 debug_hud = true
 
-function draw_hud()
-  local total_ricos = reduce(level_state.ricos, function(acc, rico)
+function get_total_ricos()
+  return reduce(level_state.ricos, function(acc, rico)
     return acc + rico.mass
   end, 0)
+end
+
+function draw_hud()
+  local total_ricos = get_total_ricos()
 
   circfill(6, 6, 3, 10)
   print("" .. total_ricos, 12, 4, 10)
@@ -179,7 +187,7 @@ function draw_level()
 
       draw_underfill(points, screen_size - 1, object.color)
     elseif object.draw ~= nil then
-      object:draw()
+      object:draw(window)
     end
   end
 
@@ -245,8 +253,12 @@ function update_level()
 
   local window = level_state.camera:get_window()
 
+  local update_context = {
+    rico_center_of_mass = rico_center_of_mass,
+  }
+
   for i, rico in ipairs(level_state.ricos) do
-    rico:update(window)
+    rico:update(window, update_context)
   end
 
   if should_flick then
@@ -259,7 +271,7 @@ function update_level()
 
   for i, object in ipairs(level_state.objects) do
     if object.update ~= nil then
-      object:update()
+      object:update(window, update_context)
     end
   end
 end
