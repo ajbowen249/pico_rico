@@ -150,7 +150,7 @@ function end_level_success()
   game_mode = gm_menu
 end
 
-debug_hud = true
+debug_hud = false
 
 function get_total_ricos()
   return reduce(level_state.ricos, function(acc, rico)
