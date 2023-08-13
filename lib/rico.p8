@@ -3,6 +3,10 @@ version 41
 __lua__
 
 local rico_mass_to_area = pi * (2.5 * 2.5)
+local rico_eye_offset_angle = 45 / 360
+local rico_eye_center_ratio = .50
+local rico_eye_radius_ratio = .35
+
 function calculate_rico_radius(mass)
   local area = mass * rico_mass_to_area
   return sqrt(area / pi)
@@ -190,9 +194,24 @@ function new_rico(mass, location, color)
       local rotation_line = rotation_normal:mul(self.radius):add(offset_location)
 
       -- debug line
-      if true or debug_hud then
+      if debug_hud then
         line(offset_location.x, offset_location.y, rotation_line.x, rotation_line.y, 11)
       end
+
+      -- draw eyes
+      -- the whites of the eyes are meant to be circles that are some way out to the edge, and then we just rotate them into place.
+      local eye_normal = new_point(rico_eye_center_ratio * self.radius, 0)
+      local eye_angle = self.rotation + .25
+      local left_eye_center = eye_normal:rotate(eye_angle - rico_eye_offset_angle):add(offset_location)
+      local right_eye_center = eye_normal:rotate(eye_angle + rico_eye_offset_angle):add(offset_location)
+
+      local eye_radius = self.radius * rico_eye_radius_ratio
+
+      circfill(left_eye_center.x, left_eye_center.y, eye_radius, 7)
+      circfill(right_eye_center.x, right_eye_center.y, eye_radius, 7)
+
+      pset(left_eye_center.x, left_eye_center.y, 0)
+      pset(right_eye_center.x, right_eye_center.y, 0)
     end,
     on_flick = function(self, world_plane_normal)
       if self.contact == nil then
