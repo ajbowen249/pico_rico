@@ -3,6 +3,7 @@ version 41
 __lua__
 
 #include ../lib/constants.p8
+#include ../lib/co_controller.p8
 #include ../lib/library.p8
 #include ../lib/math.p8
 #include ../lib/bezier.p8
@@ -14,6 +15,7 @@ __lua__
 
 #include ./framework.p8
 
+#include ./test_co_controller.p8
 #include ./test_math.p8
 #include ./test_math_intersection.p8
 
