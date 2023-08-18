@@ -136,7 +136,7 @@ function init_level()
   level_state.camera = new_camera(-70, -70)
   level_state.initialized = true
   level_state.ricos = {
-    new_rico(5, new_point(level.spawn.x, level.spawn.y), 9),
+    new_rico(5, new_point(level.spawn.x, level.spawn.y), 3),
   }
 
   level_state.rotation = 0
@@ -180,6 +180,10 @@ function draw_level()
 
   local window = level_state.camera:get_window()
 
+  for i, rico in ipairs(level_state.ricos) do
+    rico:draw(window)
+  end
+
   for i, object in ipairs(level_state.objects) do
     if object.type == ot_terrain_underfill then
       local points = map(get_points_in_window(object.points, window, exclude_upper_y), function(point)
@@ -190,10 +194,6 @@ function draw_level()
     elseif object.draw ~= nil then
       object:draw(window)
     end
-  end
-
-  for i, rico in ipairs(level_state.ricos) do
-    rico:draw(window)
   end
 
   draw_hud()

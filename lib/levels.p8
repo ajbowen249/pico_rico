@@ -40,8 +40,8 @@ function update_loading_level()
     if object_def.type == ot_terrain_underfill then
       object.color = object_def.color
       local spline = bez_spline_from_string(object_def.spline)
-      object.points = spline:sample_with_fixed_length(bezier_spline_sample_incr)
-      -- object.points = spline:sample(bezier_spline_sample_incr)
+      -- object.points = spline:sample_with_fixed_length(bezier_spline_sample_incr)
+      object.points = spline:sample(bezier_spline_sample_incr)
     elseif object_def.type == ot_pickup_rico_bulb then
       object = new_rico_bulb(object_def.location.x, object_def.location.y)
     elseif object_def.type == ot_level_end then
